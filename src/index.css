@@ -1,0 +1,31 @@
+:root {
+  --bg: #eef4fb;
+  --surface: #ffffff;
+  --accent-a: #38bdf8;
+  --accent-b: #0ea5e9;
+  --text: #0f172a;
+  --muted: #64748b;
+  --panel-dark: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Inter", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 16% 18%, rgba(56, 189, 248, 0.28) 0%, rgba(56, 189, 248, 0.14) 22%, transparent 48%),
+    radial-gradient(circle at 84% 78%, rgba(15, 23, 42, 0.26) 0%, rgba(15, 23, 42, 0.1) 20%, transparent 44%),
+    linear-gradient(135deg, #d9ecfb 0%, #eef4fb 40%, #dbeafe 68%, #f4f8fd 100%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
