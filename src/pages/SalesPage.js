@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { createSale, extractApiError } from "../services/api";
+import { createSale, extractApiError, sendEmail } from "../services/api";
 import "./SalesPage.css";
 
 function SalesPage() {
@@ -13,6 +13,7 @@ function SalesPage() {
   const [cartItems, setCartItems] = useState([]);
   const [price, setPrice] = useState("");
   const [invoice, setInvoice] = useState(null);
+  const [email, setEmail] = useState("");
   
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
@@ -143,7 +144,22 @@ function SalesPage() {
   const handleNewSale = () => {
     setInvoice(null);
     setCustomerId("");
+    setEmail("");
     handleClearSale();
+  };
+
+  const handleSendEmail = async () => {
+    if (!email) {
+      alert("Please enter an email address.");
+      return;
+    }
+
+    try {
+      await sendEmail(email);
+      alert("Email sent successfully!");
+    } catch (err) {
+      alert(`Email send failed: ${extractApiError(err)}`);
+    }
   };
 
   return (
@@ -181,6 +197,20 @@ function SalesPage() {
               <span>Total:</span>
               <span>${invoice.total.toFixed(2)}</span>
             </div>
+          </div>
+          <div className="invoice-email">
+            <label className="field">
+              <span className="field__label">Email Invoice</span>
+              <input
+                type="email"
+                placeholder="Enter email to send invoice"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+            </label>
+            <button className="btn btn--secondary" onClick={handleSendEmail}>
+              Send Email
+            </button>
           </div>
           <div className="invoice-actions">
             <button className="btn btn--primary" onClick={handleNewSale}>
