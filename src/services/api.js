@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = process.env.REACT_APP_API_URL || "https://localhost:7086/api";
+const API = process.env.REACT_APP_API_URL || "http://localhost:5072/api";
 
 export const extractApiError = (error) => {
   if (error?.response?.data) {
@@ -18,20 +18,29 @@ export const extractApiError = (error) => {
   }
 
   if (error?.code === "ERR_NETWORK") {
-    return "Cannot reach API server. Make sure your backend is running and CORS/HTTPS is configured.";
+    return "Cannot reach API server at http://localhost:5072. Make sure your backend is running and CORS is configured.";
   }
 
   return error?.message || "Unknown error";
 };
 
 export const createSale = (data) => {
-  return axios.post(`${API}/sales`, data);
+  return axios.post(`${API}/sales`, data).then((response) => {
+    console.log("[API] POST /sales", response.data);
+    return response;
+  });
 };
 
 export const getSales = () => {
-  return axios.get(`${API}/sales`);
+  return axios.get(`${API}/sales`).then((response) => {
+    console.log("[API] GET /sales", response.data);
+    return response;
+  });
 };
 
 export const sendEmail = (email) => {
-  return axios.post(`${API}/sales/send-email?email=${email}`);
+  return axios.post(`${API}/sales/send-email?email=${email}`).then((response) => {
+    console.log("[API] POST /sales/send-email", response.data);
+    return response;
+  });
 };
