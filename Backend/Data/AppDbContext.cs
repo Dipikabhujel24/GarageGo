@@ -8,5 +8,6 @@ public class AppDbContext : DbContext
 
     public DbSet<Sale> Sales { get; set; }
     public DbSet<SaleItem> SaleItems { get; set; }
+    public DbSet<Staff> Staff { get; set; }
 
 }
