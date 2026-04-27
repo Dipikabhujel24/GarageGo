@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
+import {
+  BrowserRouter as Router,
+  Navigate,
+  NavLink,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom';
 import './App.css';
+import './styles/theme.css';
+import './styles/layout.css';
 import CustomerDashboard from './components/Customer/customerDashboard';
 import CustomerHistory from './components/Customer/History/CustomerHistory';
 import CustomerLogin from './components/Customer/CustomerLogin';
@@ -11,6 +20,9 @@ import PartsForm from './components/PartsForm';
 import PartsList from './components/PartsList';
 import VendorForm from './components/VendorForm';
 import VendorList from './components/VendorList';
+import AdminDashboard from './pages/Dashboard';
+import Reports from './pages/Reports';
+import StaffManagement from './pages/StaffManagement';
 import {
   createPart,
   createVendor,
@@ -159,9 +171,15 @@ function AppContent() {
 
   const lowStockItems = parts.filter((part) => Number(part.quantity) < 10).length;
   const navItems = [
-    { path: '/', label: 'Dashboard', end: true },
+    { path: '/admin/dashboard', label: 'Admin Dashboard' },
+    { path: '/staff-management', label: 'Staff Management' },
     { path: '/vendors', label: 'Vendors' },
     { path: '/parts', label: 'Parts' },
+    { path: '/reports', label: 'Reports' },
+  ];
+  const pageTitleItems = [
+    { path: '/', label: 'Inventory Dashboard' },
+    ...navItems,
     { path: '/login', label: 'Customer Login' },
     { path: '/register', label: 'Customer Register' },
     { path: '/dashboard', label: 'Customer Dashboard' },
@@ -169,7 +187,7 @@ function AppContent() {
     { path: '/vehicles', label: 'Customer Vehicles' },
     { path: '/history', label: 'Service History' },
   ];
-  const pageTitle = navItems.find((item) => item.path === location.pathname)?.label || 'Dashboard';
+  const pageTitle = pageTitleItems.find((item) => item.path === location.pathname)?.label || 'Dashboard';
   const dashboardCards = (
     <section className="metrics-grid" aria-label="Inventory summary">
       <article className="metric-card">
@@ -267,7 +285,7 @@ function AppContent() {
           <div>
             <span className="eyebrow">Admin Panel</span>
             <h2>{pageTitle}</h2>
-            <p>Manage vendors, parts, stock levels, and supplier details from one admin workspace.</p>
+            <p>Manage vendors, parts, stock levels, staff, reports, and customer details from one workspace.</p>
           </div>
           <div className="hero-stat">
             <span>Total Items</span>
@@ -280,9 +298,12 @@ function AppContent() {
 
         <Routes>
           <Route path="/" element={dashboardCards} />
-          <Route path="/admin/dashboard" element={dashboardCards} />
           <Route path="/vendors" element={vendorsPage} />
           <Route path="/parts" element={partsPage} />
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/staff-management" element={<StaffManagement />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/login" element={<CustomerLogin />} />
           <Route path="/register" element={<CustomerRegister />} />
           <Route path="/dashboard" element={<CustomerDashboard />} />

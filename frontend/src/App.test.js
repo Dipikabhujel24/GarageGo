@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders garage inventory admin page', () => {
+test('renders dashboard heading', () => {
   render(<App />);
-  expect(screen.getByRole('heading', { name: /garage inventory/i })).toBeInTheDocument();
+  const headingElement = screen.getByRole('heading', { name: /dashboard/i });
+  expect(headingElement).toBeInTheDocument();
 });

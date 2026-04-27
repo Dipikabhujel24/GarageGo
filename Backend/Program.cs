@@ -2,12 +2,16 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+const string FrontendCorsPolicy = "FrontendCorsPolicy";
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("ReactFrontend", policy =>
+    options.AddPolicy(FrontendCorsPolicy, policy =>
     {
         policy
             .WithOrigins("http://localhost:3000")
@@ -23,14 +27,13 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
-app.Urls.Clear();
-app.Urls.Add("http://localhost:5000");
-
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseCors("ReactFrontend");
+app.UseHttpsRedirection();
+app.UseCors(FrontendCorsPolicy); 
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
