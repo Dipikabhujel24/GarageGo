@@ -10,27 +10,27 @@ public class EmailService
         _config = config;
     }
 
-    public void SendEmail(string to, string subject, string body)
+    public async Task SendEmailAsync(string to, string subject, string body)
     {
-        var smtp = new SmtpClient(_config["EmailSettings:SmtpServer"])
+        using var smtp = new SmtpClient(_config["EmailSettings:SmtpHost"])
         {
-            Port = int.Parse(_config["EmailSettings:Port"]),
+            Port = int.Parse(_config["EmailSettings:SmtpPort"]!),
             Credentials = new NetworkCredential(
-                _config["EmailSettings:SenderEmail"],
-                _config["EmailSettings:Password"]
+                _config["EmailSettings:SmtpUser"],
+                _config["EmailSettings:SmtpPass"]
             ),
             EnableSsl = true
         };
 
-        var mail = new MailMessage
+        using var mail = new MailMessage
         {
-            From = new MailAddress(_config["EmailSettings:SenderEmail"]),
+            From = new MailAddress(_config["EmailSettings:FromEmail"]!),
             Subject = subject,
             Body = body,
             IsBodyHtml = true
         };
 
         mail.To.Add(to);
-        smtp.Send(mail);
+        await smtp.SendMailAsync(mail);
     }
 }

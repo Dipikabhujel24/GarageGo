@@ -1,11 +1,13 @@
-import React from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import AdminLayout from './components/AdminLayout';
-import Dashboard from './pages/Dashboard';
-import Reports from './pages/Reports';
-import StaffManagement from './pages/StaffManagement';
-import './styles/theme.css';
-import './styles/layout.css';
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import AdminLayout from "./components/AdminLayout";
+import Dashboard from "./pages/Dashboard";
+import StaffManagement from "./pages/StaffManagement";
+import Reports from "./pages/Reports";
+
+import "./styles/theme.css";
+import "./styles/layout.css";
 
 function App() {
   return (
