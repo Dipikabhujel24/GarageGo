@@ -80,12 +80,14 @@ textarea {
 }
 
 .nav-item {
+  display: block;
   width: 100%;
   border: 0;
   border-radius: 14px;
   padding: 13px 16px;
   color: #dbeafe;
   background: transparent;
+  text-decoration: none;
   text-align: left;
   cursor: pointer;
   font-weight: 700;

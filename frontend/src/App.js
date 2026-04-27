@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import './App.css';
+import CustomerDashboard from './components/Customer/customerDashboard';
+import CustomerHistory from './components/Customer/History/CustomerHistory';
+import CustomerLogin from './components/Customer/CustomerLogin';
+import CustomerProfile from './components/Customer/CustomerProfile';
+import CustomerRegister from './components/Customer/CustomerRegister';
+import CustomerVehicles from './components/Customer/CustomerVehicles';
 import PartsForm from './components/PartsForm';
 import PartsList from './components/PartsList';
 import VendorForm from './components/VendorForm';
@@ -15,14 +22,14 @@ import {
   updateVendor,
 } from './services/api';
 
-function App() {
+function AppContent() {
   const [vendors, setVendors] = useState([]);
   const [parts, setParts] = useState([]);
   const [message, setMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const [activePage, setActivePage] = useState('dashboard');
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [selectedPart, setSelectedPart] = useState(null);
+  const location = useLocation();
 
   const fetchVendors = async () => {
     try {
@@ -152,10 +159,83 @@ function App() {
 
   const lowStockItems = parts.filter((part) => Number(part.quantity) < 10).length;
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'vendors', label: 'Vendors' },
-    { id: 'parts', label: 'Parts' },
+    { path: '/', label: 'Dashboard', end: true },
+    { path: '/vendors', label: 'Vendors' },
+    { path: '/parts', label: 'Parts' },
+    { path: '/login', label: 'Customer Login' },
+    { path: '/register', label: 'Customer Register' },
+    { path: '/dashboard', label: 'Customer Dashboard' },
+    { path: '/profile', label: 'Customer Profile' },
+    { path: '/vehicles', label: 'Customer Vehicles' },
+    { path: '/history', label: 'Service History' },
   ];
+  const pageTitle = navItems.find((item) => item.path === location.pathname)?.label || 'Dashboard';
+  const dashboardCards = (
+    <section className="metrics-grid" aria-label="Inventory summary">
+      <article className="metric-card">
+        <span>Total Parts</span>
+        <strong>{parts.length}</strong>
+        <p>Active inventory records</p>
+      </article>
+      <article className="metric-card">
+        <span>Total Vendors</span>
+        <strong>{vendors.length}</strong>
+        <p>Supplier accounts</p>
+      </article>
+      <article className="metric-card">
+        <span>Low Stock Items</span>
+        <strong>{lowStockItems}</strong>
+        <p>Quantity below 10 units</p>
+      </article>
+    </section>
+  );
+  const vendorsPage = (
+    <section className="panel" id="vendors">
+      <div className="section-header">
+        <div>
+          <span className="section-kicker">Vendor Management</span>
+          <h3>{selectedVendor ? 'Edit Vendor' : 'Add Vendor'}</h3>
+        </div>
+      </div>
+      <VendorForm
+        selectedVendor={selectedVendor}
+        onCancelEdit={() => setSelectedVendor(null)}
+        onCreate={handleCreateVendor}
+        onUpdate={handleUpdateVendor}
+      />
+      <div className="section-header list-heading">
+        <div>
+          <span className="section-kicker">Vendor List</span>
+          <h3>Registered Vendors</h3>
+        </div>
+      </div>
+      <VendorList vendors={vendors} onEdit={setSelectedVendor} onDelete={handleDeleteVendor} />
+    </section>
+  );
+  const partsPage = (
+    <section className="panel" id="parts">
+      <div className="section-header">
+        <div>
+          <span className="section-kicker">Parts Management</span>
+          <h3>{selectedPart ? 'Edit Part' : 'Add Part'}</h3>
+        </div>
+      </div>
+      <PartsForm
+        vendors={vendors}
+        selectedPart={selectedPart}
+        onCancelEdit={() => setSelectedPart(null)}
+        onCreate={handleCreatePart}
+        onUpdate={handleUpdatePart}
+      />
+      <div className="section-header list-heading">
+        <div>
+          <span className="section-kicker">Parts List</span>
+          <h3>Inventory Parts</h3>
+        </div>
+      </div>
+      <PartsList parts={parts} onEdit={setSelectedPart} onDelete={handleDeletePart} />
+    </section>
+  );
 
   return (
     <div className="admin-shell">
@@ -170,14 +250,14 @@ function App() {
 
         <nav className="sidebar-nav" aria-label="Main navigation">
           {navItems.map((item) => (
-            <button
-              key={item.id}
-              className={activePage === item.id ? 'nav-item active' : 'nav-item'}
-              type="button"
-              onClick={() => setActivePage(item.id)}
+            <NavLink
+              key={item.path}
+              className={({ isActive }) => (isActive ? 'nav-item active' : 'nav-item')}
+              end={item.end}
+              to={item.path}
             >
               {item.label}
-            </button>
+            </NavLink>
           ))}
         </nav>
       </aside>
@@ -186,13 +266,7 @@ function App() {
         <section className="hero-panel">
           <div>
             <span className="eyebrow">Admin Panel</span>
-            <h2>
-              {activePage === 'dashboard'
-                ? 'Dashboard'
-                : activePage === 'vendors'
-                  ? 'Vendors'
-                  : 'Parts'}
-            </h2>
+            <h2>{pageTitle}</h2>
             <p>Manage vendors, parts, stock levels, and supplier details from one admin workspace.</p>
           </div>
           <div className="hero-stat">
@@ -204,76 +278,29 @@ function App() {
         {message && <div className="success-message">{message}</div>}
         {errorMessage && <div className="error-message">{errorMessage}</div>}
 
-        {activePage === 'dashboard' && (
-          <section className="metrics-grid" aria-label="Inventory summary">
-            <article className="metric-card">
-              <span>Total Parts</span>
-              <strong>{parts.length}</strong>
-              <p>Active inventory records</p>
-            </article>
-            <article className="metric-card">
-              <span>Total Vendors</span>
-              <strong>{vendors.length}</strong>
-              <p>Supplier accounts</p>
-            </article>
-            <article className="metric-card">
-              <span>Low Stock Items</span>
-              <strong>{lowStockItems}</strong>
-              <p>Quantity below 10 units</p>
-            </article>
-          </section>
-        )}
-
-        {activePage === 'vendors' && (
-          <section className="panel" id="vendors">
-            <div className="section-header">
-              <div>
-                <span className="section-kicker">Vendor Management</span>
-                <h3>{selectedVendor ? 'Edit Vendor' : 'Add Vendor'}</h3>
-              </div>
-            </div>
-            <VendorForm
-              selectedVendor={selectedVendor}
-              onCancelEdit={() => setSelectedVendor(null)}
-              onCreate={handleCreateVendor}
-              onUpdate={handleUpdateVendor}
-            />
-            <div className="section-header list-heading">
-              <div>
-                <span className="section-kicker">Vendor List</span>
-                <h3>Registered Vendors</h3>
-              </div>
-            </div>
-            <VendorList vendors={vendors} onEdit={setSelectedVendor} onDelete={handleDeleteVendor} />
-          </section>
-        )}
-
-        {activePage === 'parts' && (
-          <section className="panel" id="parts">
-            <div className="section-header">
-              <div>
-                <span className="section-kicker">Parts Management</span>
-                <h3>{selectedPart ? 'Edit Part' : 'Add Part'}</h3>
-              </div>
-            </div>
-            <PartsForm
-              vendors={vendors}
-              selectedPart={selectedPart}
-              onCancelEdit={() => setSelectedPart(null)}
-              onCreate={handleCreatePart}
-              onUpdate={handleUpdatePart}
-            />
-            <div className="section-header list-heading">
-              <div>
-                <span className="section-kicker">Parts List</span>
-                <h3>Inventory Parts</h3>
-              </div>
-            </div>
-            <PartsList parts={parts} onEdit={setSelectedPart} onDelete={handleDeletePart} />
-          </section>
-        )}
+        <Routes>
+          <Route path="/" element={dashboardCards} />
+          <Route path="/admin/dashboard" element={dashboardCards} />
+          <Route path="/vendors" element={vendorsPage} />
+          <Route path="/parts" element={partsPage} />
+          <Route path="/login" element={<CustomerLogin />} />
+          <Route path="/register" element={<CustomerRegister />} />
+          <Route path="/dashboard" element={<CustomerDashboard />} />
+          <Route path="/profile" element={<CustomerProfile />} />
+          <Route path="/vehicles" element={<CustomerVehicles />} />
+          <Route path="/history" element={<CustomerHistory />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 

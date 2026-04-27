@@ -1,0 +1,14 @@
+@import './CustomerLogin.css';
+
+.register-form fieldset {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  margin: 0 0 18px;
+  padding: 16px;
+}
+
+.register-form legend {
+  color: var(--blue);
+  font-weight: 800;
+  padding: 0 8px;
+}
