@@ -4,6 +4,8 @@ import './CustomerModule.css';
 
 function CustomerDashboard() {
   const navigate = useNavigate();
+  const storedCustomer = localStorage.getItem('customer');
+  const customer = storedCustomer ? JSON.parse(storedCustomer) : null;
 
   const logout = () => {
     localStorage.removeItem('token');
@@ -15,7 +17,9 @@ function CustomerDashboard() {
     <div className="customer-page">
       <div className="customer-page-header">
         <h2>Customer Dashboard</h2>
-        <p>Manage your profile, vehicles, and service history from one place.</p>
+        <p>
+          Welcome{customer?.name ? `, ${customer.name}` : ''}. Manage your profile, vehicles, and service history from one place.
+        </p>
       </div>
 
       <div className="customer-page-content">
@@ -56,6 +60,16 @@ function CustomerDashboard() {
             <div className="customer-actions">
               <button className="danger-btn" onClick={logout}>
                 Logout
+              </button>
+            </div>
+          </div>
+
+          <div className="customer-card">
+            <h3>Staff: Add Customer</h3>
+            <p>Open internal registration form to add a customer with vehicle details.</p>
+            <div className="customer-actions">
+              <button className="secondary-btn" onClick={() => navigate('/staff/customers/new')}>
+                Open Staff Form
               </button>
             </div>
           </div>

@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl, logApiResponse, readApiResponse } from '../../config/api';
 import './CustomerModule.css';
-
-const API_BASE = 'http://localhost:5028';
 
 function CustomerVehicles() {
   const navigate = useNavigate();
@@ -19,27 +18,35 @@ function CustomerVehicles() {
     licensePlate: ''
   });
 
-  const fetchVehicles = async () => {
+  const fetchVehicles = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/customers/vehicles`, {
+      const response = await fetch(apiUrl('/api/auth/vehicles'), {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
+      logApiResponse('GET /api/auth/vehicles', response, data);
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('customer');
+        navigate('/login');
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to load vehicles.');
       }
 
-      setVehicles(data);
+      setVehicles(Array.isArray(data) ? data : []);
     } catch (err) {
       setError(err.message || 'Failed to load vehicles.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate, token]);
 
   useEffect(() => {
     if (!token) {
@@ -48,7 +55,7 @@ function CustomerVehicles() {
     }
 
     fetchVehicles();
-  }, [navigate, token]);
+  }, [token, navigate, fetchVehicles]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -61,7 +68,7 @@ function CustomerVehicles() {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/api/customers/vehicles`, {
+      const response = await fetch(apiUrl('/api/auth/vehicles'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +82,15 @@ function CustomerVehicles() {
         })
       });
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
+      logApiResponse('POST /api/auth/vehicles', response, data);
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('customer');
+        navigate('/login');
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to add vehicle.');

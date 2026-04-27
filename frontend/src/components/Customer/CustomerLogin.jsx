@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_BASE, apiUrl, getApiErrorMessage, logApiResponse, readApiResponse } from '../../config/api';
 import './CustomerLogin.css';
 
 const CustomerLogin = () => {
     const navigate = useNavigate();
-    const API_BASE = 'http://localhost:5028';
 
     const [credentials, setCredentials] = useState({
         email: '',
@@ -13,6 +13,7 @@ const CustomerLogin = () => {
 
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -23,9 +24,10 @@ const CustomerLogin = () => {
         e.preventDefault();
         setMessage('');
         setError('');
+        setLoading(true);
 
         try {
-            const response = await fetch(`${API_BASE}/api/customers/login`, {
+            const response = await fetch(apiUrl('/api/auth/login'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -33,17 +35,11 @@ const CustomerLogin = () => {
                 body: JSON.stringify(credentials),
             });
 
-            const rawText = await response.text();
-            let data = {};
-
-            try {
-                data = rawText ? JSON.parse(rawText) : {};
-            } catch {
-                data = { message: rawText || 'Unexpected server response.' };
-            }
+            const data = await readApiResponse(response);
+            logApiResponse('POST /api/auth/login', response, data);
 
             if (!response.ok) {
-                setError(data.message || 'Login failed. Please verify your credentials.');
+                setError(getApiErrorMessage(data, 'Login failed. Please verify your credentials.'));
                 return;
             }
 
@@ -63,7 +59,9 @@ const CustomerLogin = () => {
 
         } catch (err) {
             console.error("Login error:", err);
-            setError(`Cannot connect to backend at ${API_BASE}. Please ensure API is running.`);
+            setError(`Cannot connect to backend at ${API_BASE}. Please ensure the backend is running and CORS allows this origin.`);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -108,12 +106,12 @@ const CustomerLogin = () => {
                                 required 
                             />
                             <div className="forgot-password">
-                                <a href="#">Forgot Password?</a>
+                                <button type="button" className="forgot-password-link">Forgot Password?</button>
                             </div>
                         </div>
 
-                        <button type="submit" className="submit-btn mt-4">
-                            Sign In
+                        <button type="submit" className="submit-btn mt-4" disabled={loading}>
+                            {loading ? 'Signing In...' : 'Sign In'}
                         </button>
                     </form>
 

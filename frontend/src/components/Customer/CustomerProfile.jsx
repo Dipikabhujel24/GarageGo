@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl, logApiResponse, readApiResponse } from '../../config/api';
 import './CustomerModule.css';
-
-const API_BASE = 'http://localhost:5028';
 
 function CustomerProfile() {
   const navigate = useNavigate();
@@ -26,13 +25,21 @@ function CustomerProfile() {
       }
 
       try {
-        const response = await fetch(`${API_BASE}/api/customers/profile`, {
+        const response = await fetch(apiUrl('/api/auth/profile'), {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
 
-        const data = await response.json();
+        const data = await readApiResponse(response);
+        logApiResponse('GET /api/auth/profile', response, data);
+
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('customer');
+          navigate('/login');
+          return;
+        }
 
         if (!response.ok) {
           throw new Error(data.message || 'Failed to load profile.');
@@ -65,7 +72,7 @@ function CustomerProfile() {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE}/api/customers/profile`, {
+      const response = await fetch(apiUrl('/api/auth/profile'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +85,15 @@ function CustomerProfile() {
         })
       });
 
-      const data = await response.json();
+      const data = await readApiResponse(response);
+      logApiResponse('PUT /api/auth/profile', response, data);
+
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('customer');
+        navigate('/login');
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to update profile.');

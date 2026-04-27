@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { API_BASE, apiUrl, getApiErrorMessage, logApiResponse, readApiResponse } from '../../config/api';
 import './CustomerRegister.css'; // Optional: for basic styling if needed
 
 const CustomerRegister = () => {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -17,6 +19,7 @@ const CustomerRegister = () => {
 
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -27,9 +30,10 @@ const CustomerRegister = () => {
         e.preventDefault();
         setMessage('');
         setError('');
+        setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:5028/api/customers/register', {
+            const response = await fetch(apiUrl('/api/auth/register'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -40,10 +44,17 @@ const CustomerRegister = () => {
                 }),
             });
 
-            const data = await response.json();
+            const data = await readApiResponse(response);
+            logApiResponse('POST /api/auth/register', response, data);
 
             if (response.ok) {
                 setMessage(data.message || 'Registration successful!');
+                if (data.token) {
+                    localStorage.setItem('token', data.token);
+                }
+                if (data.customer) {
+                    localStorage.setItem('customer', JSON.stringify(data.customer));
+                }
                 // Reset form
                 setFormData({
                     name: '',
@@ -56,15 +67,19 @@ const CustomerRegister = () => {
                     vehicleYear: '',
                     licensePlate: ''
                 });
+
+                navigate('/dashboard');
             } else {
-                setError(data.message || 'Registration failed. Please check the inputs.');
+                setError(getApiErrorMessage(data, 'Registration failed. Please check the inputs.'));
                 if(data.errors) {
                     console.error('Validation errors:', data.errors);
                 }
             }
         } catch (err) {
-            setError('An error occurred. Please try again later.');
+            setError(`Cannot connect to backend at ${API_BASE}. Please check the backend server and CORS settings.`);
             console.error('Registration error:', err);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -72,7 +87,8 @@ const CustomerRegister = () => {
         <div className="register-page">
             <div className="register-container">
                 <div className="register-header">
-                    <h2>Complete Your Profile!</h2>
+                    <h2>Complete Your GarageGo Profile</h2>
+                    <p>Create your customer account and register your first vehicle in one step.</p>
                 </div>
                 <div className="register-form">
                     {message && <div className="success-message">{message}</div>}
@@ -123,7 +139,7 @@ const CustomerRegister = () => {
                             </div>
                         </fieldset>
 
-                        <button type="submit" className="submit-btn">Complete Profile</button>
+                        <button type="submit" className="submit-btn" disabled={loading}>{loading ? 'Creating Account...' : 'Complete Profile'}</button>
                     </form>
 
                     <div className="login-link-container">
