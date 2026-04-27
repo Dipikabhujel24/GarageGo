@@ -1,0 +1,133 @@
+.login-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e6f0ff, #f7fbff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-container {
+  width: 900px;
+  height: 500px;
+  display: flex;
+  border-radius: 25px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+}
+
+.login-header {
+  width: 50%;
+  background: linear-gradient(135deg, #0a1f44, #1d6cff);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 50px;
+}
+
+.sign-in-text {
+  border: 1px solid rgba(255,255,255,0.4);
+  padding: 10px 20px;
+  border-radius: 10px;
+  width: fit-content;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.login-header h2 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.login-form {
+  width: 50%;
+  padding: 50px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group label {
+  font-weight: bold;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+}
+
+.forgot-password {
+  text-align: right;
+  font-size: 13px;
+}
+
+.forgot-password-link {
+  background: transparent;
+  border: 0;
+  color: var(--blue-700);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.forgot-password-link:hover {
+  text-decoration: underline;
+}
+
+.submit-btn {
+  margin-top: 20px;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1d6cff, #4da3ff);
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.social-login {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.social-icons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.social-icon-btn {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  background: white;
+}
+
+.register-link-container {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.success-message {
+  background: #e6fffa;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.error-message {
+  background: #ffe6e6;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
