@@ -14,6 +14,8 @@ function SalesPage() {
   const [price, setPrice] = useState("");
   const [invoice, setInvoice] = useState(null);
   const [email, setEmail] = useState("");
+  const [feedback, setFeedback] = useState({ type: "", message: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
@@ -69,6 +71,8 @@ function SalesPage() {
   const handleSaveSale = async () => {
     const parsedCustomerId = Number(customerId);
 
+    setFeedback({ type: "", message: "" });
+
     if (!parsedCustomerId || parsedCustomerId <= 0) {
       alert("Please enter a valid Customer ID.");
       return;
@@ -79,7 +83,10 @@ function SalesPage() {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
+      setFeedback({ type: "info", message: "Saving sale..." });
       await createSale({
         customerId: parsedCustomerId,
         items: cartItems.map((item) => ({
@@ -94,14 +101,21 @@ function SalesPage() {
       setSelectedPartId("");
       setQuantity(1);
       setPrice("");
+      setFeedback({ type: "success", message: "Sale saved successfully." });
 
     } catch (err) {
-      alert(`Save failed: ${extractApiError(err)}`);
+      const errorMessage = extractApiError(err);
+      setFeedback({ type: "error", message: `Save failed: ${errorMessage}` });
+      alert(`Save failed: ${errorMessage}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleGenerateInvoice = async () => {
     const parsedCustomerId = Number(customerId);
+
+    setFeedback({ type: "", message: "" });
 
     if (!parsedCustomerId || parsedCustomerId <= 0) {
       alert("Please enter a valid Customer ID.");
@@ -113,7 +127,10 @@ function SalesPage() {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
+      setFeedback({ type: "info", message: "Generating invoice..." });
       const response = await createSale({
         customerId: parsedCustomerId,
         items: cartItems.map((item) => ({
@@ -128,9 +145,14 @@ function SalesPage() {
       setSelectedPartId("");
       setQuantity(1);
       setPrice("");
+      setFeedback({ type: "success", message: "Invoice generated successfully." });
 
     } catch (err) {
-      alert(`Generate Invoice failed: ${extractApiError(err)}`);
+      const errorMessage = extractApiError(err);
+      setFeedback({ type: "error", message: `Generate invoice failed: ${errorMessage}` });
+      alert(`Generate Invoice failed: ${errorMessage}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -149,21 +171,37 @@ function SalesPage() {
   };
 
   const handleSendEmail = async () => {
+    setFeedback({ type: "", message: "" });
+
     if (!email) {
       alert("Please enter an email address.");
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
+      setFeedback({ type: "info", message: "Sending invoice email..." });
       await sendEmail(email);
+      setFeedback({ type: "success", message: "Email sent successfully." });
       alert("Email sent successfully!");
     } catch (err) {
-      alert(`Email send failed: ${extractApiError(err)}`);
+      const errorMessage = extractApiError(err);
+      setFeedback({ type: "error", message: `Email send failed: ${errorMessage}` });
+      alert(`Email send failed: ${errorMessage}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
     <div className="sales-page-shell">
+      {feedback.message ? (
+        <div className={`sales-banner sales-banner--${feedback.type || "info"}`}>
+          {feedback.message}
+        </div>
+      ) : null}
+
       {invoice ? (
         <section className="sales-card invoice-card">
           <div className="invoice-header">
@@ -317,10 +355,10 @@ function SalesPage() {
                 <div className="sales-card__footer sales-card__footer--centered">
                   <span className="sales-page__checkout-note">Ready to complete this sale?</span>
                   <div className="sales-page__actions">
-                    <button className="btn btn--secondary" onClick={handleSaveSale}>
+                    <button className="btn btn--secondary" onClick={handleSaveSale} disabled={isSubmitting}>
                       Save Sale
                     </button>
-                    <button className="btn btn--primary" onClick={handleGenerateInvoice}>
+                    <button className="btn btn--primary" onClick={handleGenerateInvoice} disabled={isSubmitting}>
                       Generate Invoice
                     </button>
                   </div>
