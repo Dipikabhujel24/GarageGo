@@ -7,16 +7,28 @@ function getPageTitle(pathname) {
     return 'Staff Management';
   }
 
-  if (pathname.includes('reports')) {
-    return 'Reports';
+  if (pathname.includes('customer-services')) {
+    return 'Customer Services';
   }
 
   if (pathname.includes('customers')) {
     return 'Customer Lookup';
   }
 
-  if (pathname.includes('customer-services')) {
-    return 'Customer Services';
+  if (pathname.includes('inventory')) {
+    return 'Inventory Overview';
+  }
+
+  if (pathname.includes('vendors')) {
+    return 'Vendor Management';
+  }
+
+  if (pathname.includes('parts')) {
+    return 'Parts Management';
+  }
+
+  if (pathname.includes('reports')) {
+    return 'Reports';
   }
 
   return 'Dashboard';

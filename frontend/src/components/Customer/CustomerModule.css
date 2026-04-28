@@ -965,6 +965,19 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  margin-top: 14px;
+}
+
+.customer-list {
+  display: grid;
+  gap: 12px;
+}
+
+.customer-list-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  background: #f8fafc;
 }
 
 .history-table {

@@ -69,11 +69,17 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
   };
 
   return (
-    <form className="form-grid" onSubmit={handleSubmit}>
-      {error && <div className="form-error span-two">{error}</div>}
-      <label className="field">
+    <form className="inventory-form-grid" onSubmit={handleSubmit}>
+      {error && (
+        <div className="message-banner error inventory-form-error inventory-span-two">
+          {error}
+        </div>
+      )}
+
+      <label className="inventory-field">
         <span>Part Name</span>
         <input
+          className="input-field"
           name="partName"
           value={form.partName}
           onChange={handleChange}
@@ -81,9 +87,11 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           required
         />
       </label>
-      <label className="field">
+
+      <label className="inventory-field">
         <span>Category</span>
         <input
+          className="input-field"
           name="category"
           value={form.category}
           onChange={handleChange}
@@ -91,9 +99,11 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           required
         />
       </label>
-      <label className="field">
+
+      <label className="inventory-field">
         <span>Price</span>
         <input
+          className="input-field"
           name="price"
           type="number"
           min="0"
@@ -104,9 +114,11 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           required
         />
       </label>
-      <label className="field">
+
+      <label className="inventory-field">
         <span>Quantity</span>
         <input
+          className="input-field"
           name="quantity"
           type="number"
           min="0"
@@ -116,9 +128,16 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           required
         />
       </label>
-      <label className="field span-two">
+
+      <label className="inventory-field inventory-span-two">
         <span>Vendor</span>
-        <select name="vendorId" value={form.vendorId} onChange={handleChange} required>
+        <select
+          className="input-field"
+          name="vendorId"
+          value={form.vendorId}
+          onChange={handleChange}
+          required
+        >
           <option value="">Select vendor</option>
           {vendors.map((vendor) => (
             <option key={vendor.id} value={vendor.id}>
@@ -127,9 +146,11 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           ))}
         </select>
       </label>
-      <label className="field span-two">
+
+      <label className="inventory-field inventory-span-two">
         <span>Description</span>
         <textarea
+          className="input-field"
           name="description"
           value={form.description}
           onChange={handleChange}
@@ -137,13 +158,24 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           rows="3"
         />
       </label>
-      <div className="form-actions span-two">
+
+      <div className="inventory-action-row inventory-span-two">
         {isEditing && (
-          <button className="secondary-button" type="button" onClick={onCancelEdit} disabled={isSubmitting}>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onCancelEdit}
+            disabled={isSubmitting}
+          >
             Cancel
           </button>
         )}
-        <button className="primary-button" type="submit" disabled={isSubmitting || vendors.length === 0}>
+
+        <button
+          className="button button-primary"
+          type="submit"
+          disabled={isSubmitting || vendors.length === 0}
+        >
           {isSubmitting ? 'Saving...' : isEditing ? 'Update Part' : 'Add Part'}
         </button>
       </div>

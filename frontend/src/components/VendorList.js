@@ -1,11 +1,15 @@
 function VendorList({ vendors, onEdit, onDelete }) {
   if (vendors.length === 0) {
-    return <p className="empty-state">No vendors found. Add your first supplier to begin.</p>;
+    return (
+      <p className="inventory-empty-state">
+        No vendors found. Add your first supplier to begin.
+      </p>
+    );
   }
 
   return (
-    <div className="table-wrap">
-      <table className="data-table">
+    <div className="table-container">
+      <table className="table">
         <thead>
           <tr>
             <th>Vendor</th>
@@ -27,11 +31,19 @@ function VendorList({ vendors, onEdit, onDelete }) {
               <td>{vendor.email}</td>
               <td>{vendor.address}</td>
               <td>
-                <div className="table-actions">
-                  <button className="small-button" type="button" onClick={() => onEdit(vendor)}>
+                <div className="button-group">
+                  <button
+                    className="button button-primary inventory-action-button"
+                    type="button"
+                    onClick={() => onEdit(vendor)}
+                  >
                     Edit
                   </button>
-                  <button className="small-button danger" type="button" onClick={() => onDelete(vendor)}>
+                  <button
+                    className="button button-danger inventory-action-button"
+                    type="button"
+                    onClick={() => onDelete(vendor)}
+                  >
                     Delete
                   </button>
                 </div>

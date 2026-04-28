@@ -60,11 +60,17 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
   };
 
   return (
-    <form className="form-grid" onSubmit={handleSubmit}>
-      {error && <div className="form-error span-two">{error}</div>}
-      <label className="field">
+    <form className="inventory-form-grid" onSubmit={handleSubmit}>
+      {error && (
+        <div className="message-banner error inventory-form-error inventory-span-two">
+          {error}
+        </div>
+      )}
+
+      <label className="inventory-field">
         <span>Vendor Name</span>
         <input
+          className="input-field"
           name="vendorName"
           value={form.vendorName}
           onChange={handleChange}
@@ -72,9 +78,11 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           required
         />
       </label>
-      <label className="field">
+
+      <label className="inventory-field">
         <span>Company Name</span>
         <input
+          className="input-field"
           name="companyName"
           value={form.companyName}
           onChange={handleChange}
@@ -82,9 +90,11 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           required
         />
       </label>
-      <label className="field">
+
+      <label className="inventory-field">
         <span>Phone</span>
         <input
+          className="input-field"
           name="phone"
           value={form.phone}
           onChange={handleChange}
@@ -92,9 +102,11 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           required
         />
       </label>
-      <label className="field">
+
+      <label className="inventory-field">
         <span>Email</span>
         <input
+          className="input-field"
           name="email"
           type="email"
           value={form.email}
@@ -103,9 +115,11 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           required
         />
       </label>
-      <label className="field span-two">
+
+      <label className="inventory-field inventory-span-two">
         <span>Address</span>
         <input
+          className="input-field"
           name="address"
           value={form.address}
           onChange={handleChange}
@@ -113,13 +127,20 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           required
         />
       </label>
-      <div className="form-actions span-two">
+
+      <div className="inventory-action-row inventory-span-two">
         {isEditing && (
-          <button className="secondary-button" type="button" onClick={onCancelEdit} disabled={isSubmitting}>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onCancelEdit}
+            disabled={isSubmitting}
+          >
             Cancel
           </button>
         )}
-        <button className="primary-button" type="submit" disabled={isSubmitting}>
+
+        <button className="button button-primary" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : isEditing ? 'Update Vendor' : 'Add Vendor'}
         </button>
       </div>

@@ -6,6 +6,9 @@ const navItems = [
   { label: 'Staff Management', path: '/admin/staff-management' },
   { label: 'Customer Lookup', path: '/admin/customers' },
   { label: 'Customer Services', path: '/admin/customer-services' },
+  { label: 'Inventory', path: '/admin/inventory' },
+  { label: 'Vendors', path: '/admin/vendors' },
+  { label: 'Parts', path: '/admin/parts' },
   { label: 'Reports', path: '/admin/reports' },
 ];
 
