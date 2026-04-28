@@ -88,6 +88,7 @@ namespace Backend.Controllers
 
         [Authorize]
         [HttpGet("profile")]
+        [HttpGet("~/api/customers/profile")]
         public async Task<IActionResult> GetProfile()
         {
             if (!TryGetLoggedInCustomerId(out var customerId))
@@ -109,6 +110,7 @@ namespace Backend.Controllers
 
         [Authorize]
         [HttpPut("profile")]
+        [HttpPut("~/api/customers/profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateCustomerProfileDto dto)
         {
             if (!TryGetLoggedInCustomerId(out var customerId))
@@ -140,6 +142,7 @@ namespace Backend.Controllers
 
         [Authorize]
         [HttpGet("vehicles")]
+        [HttpGet("~/api/customers/vehicles")]
         public async Task<IActionResult> GetVehicles()
         {
             if (!TryGetLoggedInCustomerId(out var customerId))
@@ -164,6 +167,7 @@ namespace Backend.Controllers
 
         [Authorize]
         [HttpPost("vehicles")]
+        [HttpPost("~/api/customers/vehicles")]
         public async Task<IActionResult> AddVehicle([FromBody] AddVehicleDto dto)
         {
             if (!TryGetLoggedInCustomerId(out var customerId))

@@ -14,14 +14,28 @@ namespace Backend.Models
         public CustomerVehicle? Vehicle { get; set; }
 
         [Required]
-        public DateTime ServiceDate { get; set; }
+        [MaxLength(20)]
+        public string HistoryType { get; set; } = string.Empty;
 
         [Required]
-        public string ServiceType { get; set; } = string.Empty;
+        [MaxLength(150)]
+        public string Title { get; set; } = string.Empty;
 
+        [Required]
+        [MaxLength(1000)]
         public string Description { get; set; } = string.Empty;
 
         [Required]
-        public decimal Cost { get; set; }
+        public decimal Amount { get; set; }
+
+        [Required]
+        [MaxLength(20)]
+        public string PaymentStatus { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string? InvoiceNumber { get; set; }
+
+        [Required]
+        public DateTime ServiceDate { get; set; }
     }
 }

@@ -6,9 +6,12 @@ namespace Backend.DTOs
         public int CustomerId { get; set; }
         public int? VehicleId { get; set; }
         public string VehicleDetails { get; set; } = string.Empty;
-        public DateTime ServiceDate { get; set; }
-        public string ServiceType { get; set; } = string.Empty;
+        public string HistoryType { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public decimal Cost { get; set; }
+        public decimal Amount { get; set; }
+        public string PaymentStatus { get; set; } = string.Empty;
+        public string? InvoiceNumber { get; set; }
+        public DateTime ServiceDate { get; set; }
     }
 }

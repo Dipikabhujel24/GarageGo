@@ -41,6 +41,15 @@ namespace Backend.Data
                 .WithOne(s => s.Vehicle)
                 .HasForeignKey(s => s.VehicleId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ServiceHistory>(entity =>
+            {
+                entity.Property(s => s.HistoryType).HasMaxLength(20);
+                entity.Property(s => s.Title).HasMaxLength(150);
+                entity.Property(s => s.Description).HasMaxLength(1000);
+                entity.Property(s => s.PaymentStatus).HasMaxLength(20);
+                entity.Property(s => s.InvoiceNumber).HasMaxLength(50);
+            });
         }
     }
 }

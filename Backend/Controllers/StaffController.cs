@@ -58,7 +58,22 @@ namespace Backend.Controllers
             {
                 message = "Customer registered successfully by staff.",
                 customerId = customer.Id,
-                customerEmail = customer.Email
+                customer = new
+                {
+                    id = customer.Id,
+                    name = customer.Name,
+                    email = customer.Email,
+                    phone = customer.Phone,
+                    address = customer.Address
+                },
+                vehicle = new
+                {
+                    id = customer.Vehicles.First().Id,
+                    make = customer.Vehicles.First().Make,
+                    model = customer.Vehicles.First().Model,
+                    year = customer.Vehicles.First().Year,
+                    licensePlate = customer.Vehicles.First().LicensePlate
+                }
             });
         }
     }
