@@ -28,8 +28,6 @@ namespace Backend.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-        public ICollection<CustomerVehicle> Vehicles { get; set; } = new List<CustomerVehicle>();
-
-        public ICollection<ServiceHistory> ServiceHistories { get; set; } = new List<ServiceHistory>();
+       
     }
 }

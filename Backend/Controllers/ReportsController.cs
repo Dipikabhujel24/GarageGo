@@ -1,55 +1,142 @@
 using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
-public class ReportData
+public class ReportSummary
 {
-    public string Period { get; set; } = string.Empty;
-    public int Orders { get; set; }
-    public decimal Revenue { get; set; }
+    public decimal TotalRevenue { get; set; }
+    public int TotalOrders { get; set; }
 }
 
 [ApiController]
-[Route("api/reports")]
+[Route("api/[controller]")]
 public class ReportsController : ControllerBase
 {
-    [HttpGet("daily")]
-    public async Task<IActionResult> GetDailyReports()
-    {
-        var mockData = new List<ReportData>
-        {
-            new ReportData { Period = DateTime.Now.AddDays(-2).ToString("yyyy-MM-dd"), Orders = 5, Revenue = 150.00m },
-            new ReportData { Period = DateTime.Now.AddDays(-1).ToString("yyyy-MM-dd"), Orders = 8, Revenue = 320.50m },
-            new ReportData { Period = DateTime.Now.ToString("yyyy-MM-dd"), Orders = 3, Revenue = 90.00m }
-        };
+    private readonly AppDbContext _context;
 
-        return await Task.FromResult(Ok(mockData));
+    public ReportsController(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    [HttpGet("daily")]
+    public async Task<ActionResult<ReportSummary>> GetDailyReport()
+    {
+        try
+        {
+            // Determine boundaries for the current UTC day
+            var today = DateTime.UtcNow.Date;
+            var tomorrow = today.AddDays(1);
+
+            // Fetch report directly bounding the sale date between the start and end of the day
+            var report = await _context.Sales
+                .AsNoTracking()
+                .Where(s => s.Date >= today && s.Date < tomorrow)
+                .GroupBy(s => 1) // Grouping all results to aggregate entire date selection
+                .Select(g => new ReportSummary
+                {
+                    TotalRevenue = g.Sum(s => s.TotalAmount),
+                    TotalOrders = g.Count()
+                })
+                .FirstOrDefaultAsync();
+
+            return Ok(report ?? new ReportSummary { TotalRevenue = 0, TotalOrders = 0 });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Internal server error: {ex.Message}");
+        }
+    }
+
+    [HttpGet("weekly")]
+    public async Task<ActionResult<ReportSummary>> GetWeeklyReport()
+    {
+        try
+        {
+            // Determine boundaries for the current UTC week
+            var today = DateTime.UtcNow.Date;
+            var startOfWeek = today.AddDays(-(int)today.DayOfWeek); 
+            var endOfWeek = startOfWeek.AddDays(7);
+
+            // Fetch report strictly between start of week and the proceeding 7th day
+            var report = await _context.Sales
+                .AsNoTracking()
+                .Where(s => s.Date >= startOfWeek && s.Date < endOfWeek)
+                .GroupBy(s => 1) // Grouping all results to aggregate entire date selection
+                .Select(g => new ReportSummary
+                {
+                    TotalRevenue = g.Sum(s => s.TotalAmount),
+                    TotalOrders = g.Count()
+                })
+                .FirstOrDefaultAsync();
+
+            return Ok(report ?? new ReportSummary { TotalRevenue = 0, TotalOrders = 0 });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Internal server error: {ex.Message}");
+        }
     }
 
     [HttpGet("monthly")]
-    public async Task<IActionResult> GetMonthlyReports()
+    public async Task<ActionResult<ReportSummary>> GetMonthlyReport()
     {
-        var mockData = new List<ReportData>
+        try
         {
-            new ReportData { Period = DateTime.Now.AddMonths(-2).ToString("MMMM"), Orders = 150, Revenue = 5400.00m },
-            new ReportData { Period = DateTime.Now.AddMonths(-1).ToString("MMMM"), Orders = 120, Revenue = 4200.50m },
-            new ReportData { Period = DateTime.Now.ToString("MMMM"), Orders = 180, Revenue = 6100.00m }
-        };
+            // Determine boundaries exactly mapping to the 1st of the current UTC month
+            var today = DateTime.UtcNow.Date;
+            var startOfMonth = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            var endOfMonth = startOfMonth.AddMonths(1);
 
-        return await Task.FromResult(Ok(mockData));
+            // Fetch report directly bounded within the start of current month and beginning of next month
+            var report = await _context.Sales
+                .AsNoTracking()
+                .Where(s => s.Date >= startOfMonth && s.Date < endOfMonth)
+                .GroupBy(s => 1) // Grouping all results to aggregate entire date selection
+                .Select(g => new ReportSummary
+                {
+                    TotalRevenue = g.Sum(s => s.TotalAmount),
+                    TotalOrders = g.Count()
+                })
+                .FirstOrDefaultAsync();
+
+            return Ok(report ?? new ReportSummary { TotalRevenue = 0, TotalOrders = 0 });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Internal server error: {ex.Message}");
+        }
     }
 
     [HttpGet("yearly")]
-    public async Task<IActionResult> GetYearlyReports()
+    public async Task<ActionResult<ReportSummary>> GetYearlyReport()
     {
-        var mockData = new List<ReportData>
+        try
         {
-            new ReportData { Period = DateTime.Now.AddYears(-2).ToString("yyyy"), Orders = 1500, Revenue = 50400.00m },
-            new ReportData { Period = DateTime.Now.AddYears(-1).ToString("yyyy"), Orders = 1800, Revenue = 62000.50m },
-            new ReportData { Period = DateTime.Now.ToString("yyyy"), Orders = 2100, Revenue = 75100.00m }
-        };
+            // Determine yearly boundary mapping directly to the first day of the current year (UTC)
+            var today = DateTime.UtcNow.Date;
+            var startOfYear = new DateTime(today.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var endOfYear = startOfYear.AddYears(1);
 
-        return await Task.FromResult(Ok(mockData));
+            // Fetch report directly bounded between start of this year and the start of next year
+            var report = await _context.Sales
+                .AsNoTracking()
+                .Where(s => s.Date >= startOfYear && s.Date < endOfYear)
+                .GroupBy(s => 1) // Grouping all results to aggregate entire date selection
+                .Select(g => new ReportSummary
+                {
+                    TotalRevenue = g.Sum(s => s.TotalAmount),
+                    TotalOrders = g.Count()
+                })
+                .FirstOrDefaultAsync();
+
+            return Ok(report ?? new ReportSummary { TotalRevenue = 0, TotalOrders = 0 });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Internal server error: {ex.Message}");
+        }
     }
 }

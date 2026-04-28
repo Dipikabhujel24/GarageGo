@@ -34,6 +34,7 @@ function normalizeStaffResponse(payload) {
 
 function StaffForm({
   formData,
+  fieldErrors,
   isEditing,
   isSubmitting,
   isDeleting,
@@ -58,8 +59,15 @@ function StaffForm({
           type="text"
           value={formData.name}
           onChange={onFieldChange}
+          aria-invalid={Boolean(fieldErrors.name)}
+          aria-describedby={fieldErrors.name ? 'name-error' : undefined}
           required
         />
+        {fieldErrors.name ? (
+          <p className="field-error" id="name-error">
+            {fieldErrors.name}
+          </p>
+        ) : null}
       </div>
 
       <div className="form-group">
@@ -73,8 +81,15 @@ function StaffForm({
           type="email"
           value={formData.email}
           onChange={onFieldChange}
+          aria-invalid={Boolean(fieldErrors.email)}
+          aria-describedby={fieldErrors.email ? 'email-error' : undefined}
           required
         />
+        {fieldErrors.email ? (
+          <p className="field-error" id="email-error">
+            {fieldErrors.email}
+          </p>
+        ) : null}
       </div>
 
       <div className="form-group">
@@ -88,9 +103,16 @@ function StaffForm({
           type="password"
           value={formData.password}
           onChange={onFieldChange}
+          aria-invalid={Boolean(fieldErrors.password)}
+          aria-describedby={fieldErrors.password ? 'password-error' : undefined}
           required={!isEditing}
           placeholder={isEditing ? 'Leave blank to keep current password' : ''}
         />
+        {fieldErrors.password ? (
+          <p className="field-error" id="password-error">
+            {fieldErrors.password}
+          </p>
+        ) : null}
       </div>
 
       <div className="form-group">
@@ -103,6 +125,8 @@ function StaffForm({
           className="input-field"
           value={formData.role}
           onChange={onFieldChange}
+          aria-invalid={Boolean(fieldErrors.role)}
+          aria-describedby={fieldErrors.role ? 'role-error' : undefined}
           required
         >
           {STAFF_ROLES.map((role) => (
@@ -111,6 +135,11 @@ function StaffForm({
             </option>
           ))}
         </select>
+        {fieldErrors.role ? (
+          <p className="field-error" id="role-error">
+            {fieldErrors.role}
+          </p>
+        ) : null}
       </div>
 
       <div className="form-actions">
@@ -158,7 +187,7 @@ function StaffTable({
   onDelete,
 }) {
   if (isLoading) {
-    return <p className="status-text">Loading staff data...</p>;
+    return <p className="status-text">Loading...</p>;
   }
 
   return (
@@ -176,7 +205,7 @@ function StaffTable({
           {staffList.length === 0 ? (
             <tr>
               <td colSpan="4" className="empty-state">
-                No staff records found.
+                No staff found.
               </td>
             </tr>
           ) : (
@@ -219,20 +248,46 @@ function StaffTable({
 }
 
 function StaffManagement() {
+  // --- state: data & UI flags ---
   const [staffList, setStaffList] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // --- state: form ---
   const [formData, setFormData] = useState(initialFormState);
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // --- state: activity flags ---
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // --- misc ---
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
 
   const isEditing = useMemo(() => editingId !== null, [editingId]);
 
-  const loadStaffList = async () => {
-    setIsLoading(true);
+  const filteredStaffList = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
 
+    if (!normalizedQuery) {
+      return staffList;
+    }
+
+    return staffList.filter((staffMember) => {
+      const name = staffMember.name ?? '';
+      const email = staffMember.email ?? '';
+
+      return [name, email].some((field) =>
+        field.toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [searchQuery, staffList]);
+
+  const loadStaffList = async () => {
+    // Fetch staff list from the API and update UI flags.
+    setIsLoading(true);
     try {
       const staffResponse = await getStaff();
       setStaffList(normalizeStaffResponse(staffResponse));
@@ -256,15 +311,40 @@ function StaffManagement() {
       ...prev,
       [name]: value,
     }));
+
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        [name]: '',
+      }));
+    }
   };
 
   const resetForm = () => {
     setFormData(initialFormState);
     setEditingId(null);
+    setFieldErrors({});
+  };
+
+  // Validate the form; set `fieldErrors` for any issues and return boolean.
+  const validateForm = () => {
+    const nextFieldErrors = {};
+
+    if (!formData.name.trim()) nextFieldErrors.name = 'Name is required.';
+    if (!formData.email.trim()) nextFieldErrors.email = 'Email is required.';
+    if (!isEditing && !formData.password.trim())
+      nextFieldErrors.password = 'Password is required.';
+    if (!formData.role.trim()) nextFieldErrors.role = 'Role is required.';
+
+    setFieldErrors(nextFieldErrors);
+    return Object.keys(nextFieldErrors).length === 0;
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    // Validate inputs before calling API.
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     setMessage('');
@@ -377,6 +457,7 @@ function StaffManagement() {
       <div className="staff-layout">
         <StaffForm
           formData={formData}
+          fieldErrors={fieldErrors}
           isEditing={isEditing}
           isSubmitting={isSubmitting}
           isDeleting={isDeleting}
@@ -386,10 +467,31 @@ function StaffManagement() {
         />
 
         <div className="table-card card">
-          <h3 className="staff-card-title card-title">Staff Directory</h3>
+          <div className="table-card-header">
+            <div>
+              <h3 className="staff-card-title card-title">Staff Directory</h3>
+              <p className="section-copy staff-directory-copy">
+                Search staff by name or email.
+              </p>
+            </div>
+            <div className="staff-search-wrap">
+              <label className="form-label" htmlFor="staff-search">
+                Search Staff
+              </label>
+              <input
+                id="staff-search"
+                className="input-field"
+                type="search"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search by name or email"
+              />
+            </div>
+          </div>
+
           <StatusMessage message={message} type={messageType} />
           <StaffTable
-            staffList={staffList}
+            staffList={filteredStaffList}
             isLoading={isLoading}
             isSubmitting={isSubmitting}
             isDeleting={isDeleting}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { FaChartLine, FaShoppingCart, FaWallet } from 'react-icons/fa';
 import ReportCards from '../components/ReportCards';
 import ReportsChart from '../components/ReportsChart';
 import ReportsTable from '../components/ReportsTable';
@@ -84,8 +85,27 @@ function Reports() {
     );
 
     return [
-      { label: 'Total Revenue', value: `$${totalRevenue.toLocaleString()}` },
-      { label: 'Total Orders', value: totalOrders.toLocaleString() },
+      {
+        label: 'Total Revenue',
+        value: `$${totalRevenue.toLocaleString()}`,
+        description: 'Aggregated across the selected report range.',
+        icon: <FaWallet />,
+        variant: 'revenue',
+      },
+      {
+        label: 'Total Orders',
+        value: totalOrders.toLocaleString(),
+        description: 'Number of orders captured in the current range.',
+        icon: <FaShoppingCart />,
+        variant: 'orders',
+      },
+      {
+        label: 'Trend Snapshot',
+        value: reportData.length.toLocaleString(),
+        description: 'Report periods currently loaded from the API.',
+        icon: <FaChartLine />,
+        variant: 'trend',
+      },
     ];
   }, [reportData]);
 
@@ -129,7 +149,9 @@ function Reports() {
         {errorMessage && <div className="message-banner error">{errorMessage}</div>}
 
         {isLoading ? (
-          <p className="status-text">Loading reports data...</p>
+          <div className="loading-panel card">
+            <p className="status-text">Loading reports data...</p>
+          </div>
         ) : (
           <>
             <ReportsChart data={chartData} />

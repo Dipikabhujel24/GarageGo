@@ -23,11 +23,17 @@ function ReportsChart({ data }) {
     <article className="chart-card card">
       <div className="chart-header">
         <h3 className="chart-title card-title">Revenue Overview</h3>
+        <p className="section-copy chart-copy">
+          Track revenue movement across the selected report range.
+        </p>
       </div>
 
       <div className="chart-wrap">
         <ResponsiveContainer width="100%" height={320}>
-          <LineChart data={chartData} margin={{ top: 10, right: 24, left: -10, bottom: 0 }}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 10, right: 24, left: -10, bottom: 0 }}
+          >
             <CartesianGrid stroke="#E3EAF5" strokeDasharray="4 4" />
             <XAxis dataKey="label" stroke="#1F2A44" tickLine={false} axisLine={false} />
             <YAxis

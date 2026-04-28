@@ -15,6 +15,7 @@ public class StaffController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Staff>>> GetAllStaff()
     {
+        // Retrieve all staff entries purely for read-only access prioritizing sorted Name ordering
         var staff = await _context.Staff
             .AsNoTracking()
             .OrderBy(s => s.Name)
