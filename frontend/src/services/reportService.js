@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const REPORTS_API_BASE_URL =
-  process.env.REACT_APP_API_URL?.trim() || 'https://localhost:7086';
+  process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
 
 const reportsApi = axios.create({
   baseURL: `${REPORTS_API_BASE_URL}/api/reports`,

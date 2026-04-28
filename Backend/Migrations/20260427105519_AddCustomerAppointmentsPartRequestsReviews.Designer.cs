@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -10,9 +11,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260427105519_AddCustomerAppointmentsPartRequestsReviews")]
+    partial class AddCustomerAppointmentsPartRequestsReviews
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -38,6 +41,9 @@ namespace Backend.Migrations
                     b.Property<int>("CustomerId")
                         .HasColumnType("integer");
 
+                    b.Property<int>("CustomerVehicleId")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("text");
@@ -52,14 +58,11 @@ namespace Backend.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
 
-                    b.Property<int>("VehicleId")
-                        .HasColumnType("integer");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
 
-                    b.HasIndex("VehicleId");
+                    b.HasIndex("CustomerVehicleId");
 
                     b.ToTable("Appointments");
                 });
@@ -192,6 +195,53 @@ namespace Backend.Migrations
                     b.ToTable("Parts");
                 });
 
+            modelBuilder.Entity("PartRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("CustomerVehicleId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PartName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StaffNote")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("CustomerVehicleId");
+
+                    b.ToTable("PartRequests");
+                });
+
             modelBuilder.Entity("Sale", b =>
                 {
                     b.Property<int>("Id")
@@ -314,9 +364,14 @@ namespace Backend.Migrations
                     b.Property<int>("Rating")
                         .HasColumnType("integer");
 
+                    b.Property<int>("ServiceHistoryId")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CustomerId");
+
+                    b.HasIndex("ServiceHistoryId");
 
                     b.ToTable("ServiceReviews");
                 });
@@ -352,46 +407,6 @@ namespace Backend.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Staff");
-                });
-
-            modelBuilder.Entity("UnavailablePartRequest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("CustomerId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PartName")
-                        .IsRequired()
-                        .HasMaxLength(160)
-                        .HasColumnType("character varying(160)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.Property<string>("VehicleModel")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CustomerId");
-
-                    b.ToTable("UnavailablePartRequests");
                 });
 
             modelBuilder.Entity("Vendor", b =>
@@ -432,17 +447,21 @@ namespace Backend.Migrations
 
             modelBuilder.Entity("Appointment", b =>
                 {
-                    b.HasOne("Customer", null)
+                    b.HasOne("Customer", "Customer")
                         .WithMany("Appointments")
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("CustomerVehicle", null)
+                    b.HasOne("CustomerVehicle", "Vehicle")
                         .WithMany("Appointments")
-                        .HasForeignKey("VehicleId")
+                        .HasForeignKey("CustomerVehicleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("CustomerVehicle", b =>
@@ -465,6 +484,24 @@ namespace Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Vendor");
+                });
+
+            modelBuilder.Entity("PartRequest", b =>
+                {
+                    b.HasOne("Customer", "Customer")
+                        .WithMany("PartRequests")
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CustomerVehicle", "Vehicle")
+                        .WithMany("PartRequests")
+                        .HasForeignKey("CustomerVehicleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("SaleItem", b =>
@@ -503,27 +540,26 @@ namespace Backend.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Customer");
-                });
-
-            modelBuilder.Entity("UnavailablePartRequest", b =>
-                {
-                    b.HasOne("Customer", null)
-                        .WithMany("UnavailablePartRequests")
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                    b.HasOne("ServiceHistory", "ServiceHistory")
+                        .WithMany("Reviews")
+                        .HasForeignKey("ServiceHistoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("ServiceHistory");
                 });
 
             modelBuilder.Entity("Customer", b =>
                 {
                     b.Navigation("Appointments");
 
+                    b.Navigation("PartRequests");
+
                     b.Navigation("ServiceHistories");
 
                     b.Navigation("ServiceReviews");
-
-                    b.Navigation("UnavailablePartRequests");
 
                     b.Navigation("Vehicles");
                 });
@@ -532,12 +568,19 @@ namespace Backend.Migrations
                 {
                     b.Navigation("Appointments");
 
+                    b.Navigation("PartRequests");
+
                     b.Navigation("ServiceHistories");
                 });
 
             modelBuilder.Entity("Sale", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("ServiceHistory", b =>
+                {
+                    b.Navigation("Reviews");
                 });
 
             modelBuilder.Entity("Vendor", b =>

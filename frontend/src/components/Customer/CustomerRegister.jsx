@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './CustomerRegister.css'; // Optional: for basic styling if needed
 
+const API_BASE = process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
+
 const CustomerRegister = () => {
     const [formData, setFormData] = useState({
         name: '',
@@ -29,7 +31,7 @@ const CustomerRegister = () => {
         setError('');
 
         try {
-            const response = await fetch('http://localhost:5028/api/customers/register', {
+            const response = await fetch(`${API_BASE}/api/customers/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

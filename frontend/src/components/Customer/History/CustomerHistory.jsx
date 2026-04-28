@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './CustomerHistory.css';
 
+const API_BASE = process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
+
 const CustomerHistory = () => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -17,7 +19,7 @@ const CustomerHistory = () => {
                 }
 
                 // Call the correct backend API mapped through the ServiceHistoryController
-                const response = await fetch('http://localhost:5028/api/customers/ServiceHistory', {
+                const response = await fetch(`${API_BASE}/api/customers/ServiceHistory`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }

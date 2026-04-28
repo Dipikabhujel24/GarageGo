@@ -8,5 +8,5 @@ public class Sale
     public DateTime Date { get; set; } = DateTime.Now;
     public decimal TotalAmount { get; set; }
 
-    public List<SaleItem> Items { get; set; }
+    public List<SaleItem> Items { get; set; } = new();
 }

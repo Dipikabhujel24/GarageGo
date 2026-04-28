@@ -3,7 +3,7 @@ using System.Collections.Generic;
 public class CreateSaleDto
 {
     public int CustomerId { get; set; }
-    public List<SaleItemDto> Items { get; set; }
+    public List<SaleItemDto> Items { get; set; } = new();
 }
 
 public class SaleItemDto

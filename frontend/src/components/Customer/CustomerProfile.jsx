@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './CustomerModule.css';
 
-const API_BASE = 'http://localhost:5028';
+const API_BASE = process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
 
 function CustomerProfile() {
   const navigate = useNavigate();

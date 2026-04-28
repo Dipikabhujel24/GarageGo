@@ -4,7 +4,7 @@ import './CustomerLogin.css';
 
 const CustomerLogin = () => {
     const navigate = useNavigate();
-    const API_BASE = 'http://localhost:5028';
+    const API_BASE = process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
 
     const [credentials, setCredentials] = useState({
         email: '',
