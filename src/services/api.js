@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API = process.env.REACT_APP_API_URL || "http://localhost:5072/api";
+const API = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 export const extractApiError = (error) => {
   if (error?.response?.data) {
@@ -18,7 +18,7 @@ export const extractApiError = (error) => {
   }
 
   if (error?.code === "ERR_NETWORK") {
-    return "Cannot reach API server at http://localhost:5072. Make sure your backend is running and CORS is configured.";
+    return "Cannot reach API server at http://localhost:5000. Make sure your backend is running and CORS is configured.";
   }
 
   return error?.message || "Unknown error";

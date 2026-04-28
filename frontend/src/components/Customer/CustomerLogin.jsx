@@ -129,6 +129,10 @@ const CustomerLogin = () => {
                             Don't have an account? 
                             <Link to="/register" className="register-link"> Sign Up</Link>
                         </p>
+                        <p>
+                            Want Khushi's merged admin pages?
+                            <Link to="/admin/dashboard" className="register-link"> Open Admin Console</Link>
+                        </p>
                     </div>
                 </div>
             </div>

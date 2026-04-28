@@ -17,6 +17,109 @@ namespace Backend.Controllers
             _context = context;
         }
 
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<object>>> GetAllStaff()
+        {
+            var staffMembers = await _context.Staff
+                .AsNoTracking()
+                .OrderBy(staff => staff.Name)
+                .Select(staff => MapStaffResponse(staff))
+                .ToListAsync();
+
+            return Ok(staffMembers);
+        }
+
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<object>> GetStaffById(int id)
+        {
+            var staffMember = await _context.Staff
+                .AsNoTracking()
+                .FirstOrDefaultAsync(staff => staff.Id == id);
+
+            if (staffMember is null)
+            {
+                return NotFound(new { message = "Staff member not found." });
+            }
+
+            return Ok(MapStaffResponse(staffMember));
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<object>> CreateStaff([FromBody] UpsertStaffDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Password))
+            {
+                return BadRequest(new { message = "Password is required when creating staff." });
+            }
+
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var emailExists = await _context.Staff.AnyAsync(staff => staff.Email.ToLower() == email);
+
+            if (emailExists)
+            {
+                return Conflict(new { message = "A staff member with this email already exists." });
+            }
+
+            var entity = new Staff
+            {
+                Name = dto.Name.Trim(),
+                Email = email,
+                Password = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                Role = dto.Role
+            };
+
+            _context.Staff.Add(entity);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetStaffById), new { id = entity.Id }, MapStaffResponse(entity));
+        }
+
+        [HttpPut("{id:int}")]
+        public async Task<ActionResult<object>> UpdateStaff(int id, [FromBody] UpsertStaffDto dto)
+        {
+            var entity = await _context.Staff.FirstOrDefaultAsync(staff => staff.Id == id);
+            if (entity is null)
+            {
+                return NotFound(new { message = "Staff member not found." });
+            }
+
+            var email = dto.Email.Trim().ToLowerInvariant();
+            var duplicateEmail = await _context.Staff.AnyAsync(staff => staff.Id != id && staff.Email.ToLower() == email);
+
+            if (duplicateEmail)
+            {
+                return Conflict(new { message = "Another staff member already uses this email." });
+            }
+
+            entity.Name = dto.Name.Trim();
+            entity.Email = email;
+            entity.Role = dto.Role;
+
+            if (!string.IsNullOrWhiteSpace(dto.Password))
+            {
+                entity.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(MapStaffResponse(entity));
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteStaff(int id)
+        {
+            var entity = await _context.Staff.FirstOrDefaultAsync(staff => staff.Id == id);
+            if (entity is null)
+            {
+                return NotFound(new { message = "Staff member not found." });
+            }
+
+            _context.Staff.Remove(entity);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
         [HttpPost("customers")]
         public async Task<IActionResult> RegisterCustomerByStaff([FromBody] StaffRegisterCustomerDto dto)
         {
@@ -27,7 +130,7 @@ namespace Backend.Controllers
                 return BadRequest(new { message = "Email is required." });
             }
 
-            if (await _context.Customers.AnyAsync(c => c.Email == normalizedEmail))
+            if (await _context.Customers.AnyAsync(customer => customer.Email == normalizedEmail))
             {
                 return Conflict(new { message = "An account with this email already exists." });
             }
@@ -54,6 +157,8 @@ namespace Backend.Controllers
             _context.Customers.Add(customer);
             await _context.SaveChangesAsync();
 
+            var vehicle = customer.Vehicles.First();
+
             return Ok(new
             {
                 message = "Customer registered successfully by staff.",
@@ -68,13 +173,24 @@ namespace Backend.Controllers
                 },
                 vehicle = new
                 {
-                    id = customer.Vehicles.First().Id,
-                    make = customer.Vehicles.First().Make,
-                    model = customer.Vehicles.First().Model,
-                    year = customer.Vehicles.First().Year,
-                    licensePlate = customer.Vehicles.First().LicensePlate
+                    id = vehicle.Id,
+                    make = vehicle.Make,
+                    model = vehicle.Model,
+                    year = vehicle.Year,
+                    licensePlate = vehicle.LicensePlate
                 }
             });
+        }
+
+        private static object MapStaffResponse(Staff staff)
+        {
+            return new
+            {
+                id = staff.Id,
+                name = staff.Name,
+                email = staff.Email,
+                role = staff.Role
+            };
         }
     }
 }

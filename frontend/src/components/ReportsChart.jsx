@@ -1,0 +1,72 @@
+import React from 'react';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+
+function formatNumber(value) {
+  return Number(value).toLocaleString();
+}
+
+function ReportsChart({ data }) {
+  const chartData = data.map((item) => ({
+    ...item,
+    revenue: Number(item.revenue),
+  }));
+
+  return (
+    <article className="chart-card card">
+      <div className="chart-header">
+        <h3 className="chart-title card-title">Revenue Overview</h3>
+        <p className="section-copy chart-copy">
+          Track revenue movement across the selected report range.
+        </p>
+      </div>
+
+      <div className="chart-wrap">
+        <ResponsiveContainer width="100%" height={320}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 10, right: 24, left: -10, bottom: 0 }}
+          >
+            <CartesianGrid stroke="#E3EAF5" strokeDasharray="4 4" />
+            <XAxis dataKey="label" stroke="#1F2A44" tickLine={false} axisLine={false} />
+            <YAxis
+              stroke="#1F2A44"
+              tickLine={false}
+              axisLine={false}
+              width={64}
+              tickFormatter={formatNumber}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: '#FFFFFF',
+                border: '1px solid #E3EAF5',
+                borderRadius: '12px',
+                color: '#1F2A44',
+                boxShadow: '0 12px 24px rgba(42, 82, 152, 0.12)',
+              }}
+              labelStyle={{ color: '#1F2A44', fontWeight: 700 }}
+              formatter={(value) => [`$${formatNumber(value)}`, 'Revenue']}
+            />
+            <Line
+              type="monotone"
+              dataKey="revenue"
+              stroke="#87A8DC"
+              strokeWidth={3}
+              dot={{ r: 4, fill: '#87A8DC', strokeWidth: 0 }}
+              activeDot={{ r: 6, fill: '#2A5298' }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </article>
+  );
+}
+
+export default ReportsChart;

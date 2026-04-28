@@ -1,4 +1,3 @@
 <Solution>
   <Project Path="Backend/Backend.csproj" />
-  <Project Path="GarageGo/GarageGo.csproj" />
 </Solution>

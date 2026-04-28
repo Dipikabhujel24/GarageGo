@@ -1,36 +1,39 @@
 using System.Net;
 using System.Net.Mail;
 
-public class EmailService
+namespace Backend.Services
 {
-    private readonly IConfiguration _config;
-
-    public EmailService(IConfiguration config)
+    public class EmailService
     {
-        _config = config;
-    }
+        private readonly IConfiguration _config;
 
-    public void SendEmail(string to, string subject, string body)
-    {
-        var smtp = new SmtpClient(_config["EmailSettings:SmtpServer"])
+        public EmailService(IConfiguration config)
         {
-            Port = int.Parse(_config["EmailSettings:Port"]),
-            Credentials = new NetworkCredential(
-                _config["EmailSettings:SenderEmail"],
-                _config["EmailSettings:Password"]
-            ),
-            EnableSsl = true
-        };
+            _config = config;
+        }
 
-        var mail = new MailMessage
+        public async Task SendEmailAsync(string to, string subject, string body)
         {
-            From = new MailAddress(_config["EmailSettings:SenderEmail"]),
-            Subject = subject,
-            Body = body,
-            IsBodyHtml = true
-        };
+            using var smtp = new SmtpClient(_config["EmailSettings:SmtpHost"])
+            {
+                Port = int.Parse(_config["EmailSettings:SmtpPort"]!),
+                Credentials = new NetworkCredential(
+                    _config["EmailSettings:SmtpUser"],
+                    _config["EmailSettings:SmtpPass"]
+                ),
+                EnableSsl = true
+            };
 
-        mail.To.Add(to);
-        smtp.Send(mail);
+            using var mail = new MailMessage
+            {
+                From = new MailAddress(_config["EmailSettings:FromEmail"]!),
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            };
+
+            mail.To.Add(to);
+            await smtp.SendMailAsync(mail);
+        }
     }
 }

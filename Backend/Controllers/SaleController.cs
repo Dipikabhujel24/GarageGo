@@ -1,42 +1,47 @@
 using Backend.Data;
+using Backend.DTOs;
+using Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 
-[ApiController]
-[Route("api/[controller]")]
-public class SalesController : ControllerBase
+namespace Backend.Controllers
 {
-    private readonly AppDbContext _context;
-
-    public SalesController(AppDbContext context)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class SalesController : ControllerBase
     {
-        _context = context;
-    }
+        private readonly AppDbContext _context;
 
-    [HttpPost]
-    public IActionResult CreateSale(CreateSaleDto dto)
-    {
-        var sale = new Sale
+        public SalesController(AppDbContext context)
         {
-            CustomerId = dto.CustomerId,
-            Items = dto.Items.Select(i => new SaleItem
+            _context = context;
+        }
+
+        [HttpPost]
+        public IActionResult CreateSale(CreateSaleDto dto)
+        {
+            var sale = new Sale
             {
-                PartId = i.PartId,
-                Quantity = i.Quantity,
-                Price = i.Price
-            }).ToList()
-        };
+                CustomerId = dto.CustomerId,
+                Items = dto.Items.Select(item => new SaleItem
+                {
+                    PartId = item.PartId,
+                    Quantity = item.Quantity,
+                    Price = item.Price
+                }).ToList()
+            };
 
-        sale.TotalAmount = sale.Items.Sum(i => i.Quantity * i.Price);
+            sale.TotalAmount = sale.Items.Sum(item => item.Quantity * item.Price);
 
-        _context.Sales.Add(sale);
-        _context.SaveChanges();
+            _context.Sales.Add(sale);
+            _context.SaveChanges();
 
-        return Ok(sale);
-    }
+            return Ok(sale);
+        }
 
-    [HttpPost("send-email")]
-    public IActionResult SendInvoiceEmail(string email)
-    {
-        return Ok("Email sent");
+        [HttpPost("send-email")]
+        public IActionResult SendInvoiceEmail(string email)
+        {
+            return Ok("Email sent");
+        }
     }
 }
