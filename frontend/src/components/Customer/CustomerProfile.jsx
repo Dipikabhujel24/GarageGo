@@ -1,21 +1,41 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiUrl, logApiResponse, readApiResponse } from '../../config/api';
+import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
 import './CustomerModule.css';
+
+const initialForm = {
+  name: '',
+  email: '',
+  phone: '',
+  address: ''
+};
 
 function CustomerProfile() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: ''
-  });
+  const [formData, setFormData] = useState(initialForm);
+  const [profileMeta, setProfileMeta] = useState({ vehicleCount: 0, lastUpdated: '—' });
 
   const token = localStorage.getItem('token');
+
+  const displayName = formData.name.trim() || 'Customer';
+
+  const initials = useMemo(() => {
+    const parts = displayName.split(' ').filter(Boolean);
+
+    if (parts.length === 0) {
+      return 'G';
+    }
+
+    return parts
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase();
+  }, [displayName]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -25,14 +45,13 @@ function CustomerProfile() {
       }
 
       try {
-        const response = await fetch(apiUrl('/api/auth/profile'), {
+        const response = await fetch(`${API_BASE}/api/customers/profile`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
         });
 
         const data = await readApiResponse(response);
-        logApiResponse('GET /api/auth/profile', response, data);
 
         if (response.status === 401) {
           localStorage.removeItem('token');
@@ -42,7 +61,7 @@ function CustomerProfile() {
         }
 
         if (!response.ok) {
-          throw new Error(data.message || 'Failed to load profile.');
+          throw new Error(getApiErrorMessage(data, 'Failed to load profile.'));
         }
 
         setFormData({
@@ -50,6 +69,15 @@ function CustomerProfile() {
           email: data.email || '',
           phone: data.phone || '',
           address: data.address || ''
+        });
+
+        setProfileMeta({
+          vehicleCount: Array.isArray(data.vehicles) ? data.vehicles.length : 0,
+          lastUpdated: new Date().toLocaleDateString('en-NP', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+          })
         });
       } catch (err) {
         setError(err.message || 'Failed to load profile.');
@@ -61,18 +89,14 @@ function CustomerProfile() {
     loadProfile();
   }, [navigate, token]);
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     setMessage('');
     setError('');
+    setSaving(true);
 
     try {
-      const response = await fetch(apiUrl('/api/auth/profile'), {
+      const response = await fetch(`${API_BASE}/api/customers/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -86,7 +110,6 @@ function CustomerProfile() {
       });
 
       const data = await readApiResponse(response);
-      logApiResponse('PUT /api/auth/profile', response, data);
 
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -96,62 +119,134 @@ function CustomerProfile() {
       }
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to update profile.');
+        throw new Error(getApiErrorMessage(data, 'Failed to update profile.'));
       }
 
       if (data.customer) {
         localStorage.setItem('customer', JSON.stringify(data.customer));
+        setFormData({
+          name: data.customer.name || '',
+          email: data.customer.email || '',
+          phone: data.customer.phone || '',
+          address: data.customer.address || ''
+        });
       }
 
       setMessage(data.message || 'Profile updated successfully.');
     } catch (err) {
       setError(err.message || 'Failed to update profile.');
+    } finally {
+      setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="customer-page"><div className="customer-page-content">Loading profile...</div></div>;
+    return (
+      <div className="customer-page-shell">
+        <div className="customer-loading-card">
+          <div className="loading-spinner" aria-hidden="true" />
+          <div>
+            <h2>Loading your profile</h2>
+            <p>Fetching account details from GarageGo.</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="customer-page">
-      <div className="customer-page-header">
-        <h2>My Profile</h2>
-        <p>View and edit your personal details.</p>
-      </div>
-
-      <div className="customer-page-content">
-        {message && <div className="success-message">{message}</div>}
-        {error && <div className="error-message">{error}</div>}
-
-        <form onSubmit={handleSubmit} className="form-grid">
-          <div className="form-group">
-            <label htmlFor="name">Name</label>
-            <input id="name" name="name" value={formData.name} onChange={handleChange} required />
+    <div className="customer-page-shell customer-profile-shell">
+      <div className="customer-page-card customer-profile-card">
+        <header className="customer-page-hero profile-hero">
+          <div>
+            <span className="section-kicker">Customer account</span>
+            <h2>My Profile</h2>
+            <p>Manage your personal information and contact details.</p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input id="email" name="email" value={formData.email} readOnly />
+          <div className="profile-avatar-circle" aria-label="Customer avatar">
+            <span>{initials}</span>
           </div>
+        </header>
 
-          <div className="form-group">
-            <label htmlFor="phone">Phone</label>
-            <input id="phone" name="phone" value={formData.phone} onChange={handleChange} required />
-          </div>
+        <div className="customer-page-alerts">
+          {message && <div className="success-message">{message}</div>}
+          {error && <div className="error-message">{error}</div>}
+        </div>
 
-          <div className="form-group full">
-            <label htmlFor="address">Address</label>
-            <input id="address" name="address" value={formData.address} onChange={handleChange} />
-          </div>
+        <div className="profile-layout-grid">
+          <section className="customer-form-card">
+            <div className="customer-form-card__header">
+              <div>
+                <span className="section-kicker">Profile details</span>
+                <h3>Edit profile information</h3>
+              </div>
+            </div>
 
-          <div className="customer-actions form-group full">
-            <button type="submit" className="primary-btn">Save Profile</button>
-            <button type="button" className="secondary-btn" onClick={() => navigate('/dashboard')}>
-              Back to Dashboard
-            </button>
-          </div>
-        </form>
+            <form onSubmit={handleSubmit} className="form-grid profile-form-grid">
+              <div className="form-group">
+                <label htmlFor="name">Name</label>
+                <input id="name" name="name" value={formData.name} onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))} required />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input id="email" name="email" value={formData.email} readOnly />
+              </div>
+
+              <div className="form-group full">
+                <label htmlFor="phone">Phone</label>
+                <input id="phone" name="phone" value={formData.phone} onChange={(event) => setFormData((prev) => ({ ...prev, phone: event.target.value }))} required />
+              </div>
+
+              <div className="form-group full">
+                <label htmlFor="address">Address</label>
+                <textarea
+                  id="address"
+                  name="address"
+                  value={formData.address}
+                  onChange={(event) => setFormData((prev) => ({ ...prev, address: event.target.value }))}
+                  rows="4"
+                />
+              </div>
+
+              <div className="form-actions form-actions-wide">
+                <button type="submit" className="primary-btn" disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button type="button" className="secondary-btn" onClick={() => navigate('/dashboard')}>
+                  Back to Dashboard
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <aside className="customer-aside-panel">
+            <div className="customer-aside-card">
+              <span className="section-kicker">Account snapshot</span>
+              <h3>{displayName}</h3>
+              <div className="aside-stat-list">
+                <div>
+                  <span>Email</span>
+                  <strong>{formData.email || '—'}</strong>
+                </div>
+                <div>
+                  <span>Linked vehicles</span>
+                  <strong>{profileMeta.vehicleCount}</strong>
+                </div>
+                <div>
+                  <span>Last synced</span>
+                  <strong>{profileMeta.lastUpdated}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="customer-aside-card customer-aside-card--soft">
+              <h4>Tips</h4>
+              <p>Keep your phone and address updated so GarageGo can reach you about service reminders and vehicle updates.</p>
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   );

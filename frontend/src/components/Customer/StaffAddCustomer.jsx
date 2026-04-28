@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE } from '../../config/api';
+import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
 import './CustomerModule.css';
 
 const initialForm = {
@@ -20,6 +20,8 @@ function StaffAddCustomer() {
   const [formData, setFormData] = useState(initialForm);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [createdSummary, setCreatedSummary] = useState(null);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -30,6 +32,8 @@ function StaffAddCustomer() {
     event.preventDefault();
     setMessage('');
     setError('');
+    setSubmitting(true);
+    setCreatedSummary(null);
 
     try {
       const response = await fetch(`${API_BASE}/api/staff/customers`, {
@@ -43,86 +47,140 @@ function StaffAddCustomer() {
         })
       });
 
-      const rawText = await response.text();
-      let data = {};
-
-      try {
-        data = rawText ? JSON.parse(rawText) : {};
-      } catch {
-        data = { message: rawText || 'Unexpected server response.' };
-      }
+      const data = await readApiResponse(response);
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to register customer from staff portal.');
+        throw new Error(getApiErrorMessage(data, 'Failed to register customer from staff portal.'));
       }
 
       setMessage(data.message || 'Customer registered successfully by staff.');
+      setCreatedSummary({
+        customerName: data.customer?.name || formData.name,
+        customerEmail: data.customer?.email || formData.email,
+        vehicleLabel: data.vehicle ? `${data.vehicle.make} ${data.vehicle.model}` : `${formData.vehicleMake} ${formData.vehicleModel}`,
+        vehicleYear: data.vehicle?.year || formData.vehicleYear,
+        licensePlate: data.vehicle?.licensePlate || formData.licensePlate
+      });
       setFormData(initialForm);
     } catch (err) {
       setError(err.message || 'Failed to register customer from staff portal.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <div className="customer-page">
-      <div className="customer-page-header">
-        <h2>Staff Customer Registration</h2>
-        <p>Create a customer account and vehicle details from the internal staff portal.</p>
-      </div>
-
-      <div className="customer-page-content">
-        {message && <div className="success-message">{message}</div>}
-        {error && <div className="error-message">{error}</div>}
-
-        <form className="form-grid" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="name">Customer Name</label>
-            <input id="name" name="name" value={formData.name} onChange={handleChange} required />
+    <div className="customer-page-shell customer-staff-shell">
+      <div className="customer-page-card customer-staff-card">
+        <header className="customer-page-hero staff-hero">
+          <div>
+            <span className="section-kicker">Internal workflow</span>
+            <h2>Staff Customer Registration</h2>
+            <p>Register walk-in customers and their vehicle details.</p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+          <div className="staff-hero-badge">
+            <span>GarageGo Staff</span>
+            <strong>Customer Intake</strong>
           </div>
+        </header>
 
-          <div className="form-group">
-            <label htmlFor="phone">Phone</label>
-            <input id="phone" name="phone" value={formData.phone} onChange={handleChange} required />
-          </div>
+        <div className="customer-page-alerts">
+          {message && <div className="success-message">{message}</div>}
+          {error && <div className="error-message">{error}</div>}
+        </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Temporary Password</label>
-            <input id="password" name="password" type="password" minLength="6" value={formData.password} onChange={handleChange} required />
-          </div>
+        {createdSummary && (
+          <section className="customer-summary-result">
+            <div>
+              <span className="section-kicker">Created customer</span>
+              <h3>{createdSummary.customerName}</h3>
+              <p>{createdSummary.customerEmail}</p>
+            </div>
 
-          <div className="form-group full">
-            <label htmlFor="address">Address</label>
-            <input id="address" name="address" value={formData.address} onChange={handleChange} />
-          </div>
+            <div className="customer-summary-result__vehicle">
+              <span>Vehicle</span>
+              <strong>{createdSummary.vehicleLabel}</strong>
+              <p>{createdSummary.vehicleYear} • {createdSummary.licensePlate || 'No plate provided'}</p>
+            </div>
+          </section>
+        )}
 
-          <div className="form-group">
-            <label htmlFor="vehicleMake">Vehicle Make</label>
-            <input id="vehicleMake" name="vehicleMake" value={formData.vehicleMake} onChange={handleChange} required />
-          </div>
+        <form className="staff-form-grid" onSubmit={handleSubmit}>
+          <section className="customer-form-card">
+            <div className="customer-form-card__header">
+              <div>
+                <span className="section-kicker">Customer details</span>
+                <h3>Account information</h3>
+              </div>
+            </div>
 
-          <div className="form-group">
-            <label htmlFor="vehicleModel">Vehicle Model</label>
-            <input id="vehicleModel" name="vehicleModel" value={formData.vehicleModel} onChange={handleChange} required />
-          </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label htmlFor="name">Customer Name</label>
+                <input id="name" name="name" value={formData.name} onChange={handleChange} required />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="vehicleYear">Vehicle Year</label>
-            <input id="vehicleYear" name="vehicleYear" type="number" min="1900" max="2100" value={formData.vehicleYear} onChange={handleChange} required />
-          </div>
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="licensePlate">License Plate</label>
-            <input id="licensePlate" name="licensePlate" value={formData.licensePlate} onChange={handleChange} />
-          </div>
+              <div className="form-group">
+                <label htmlFor="phone">Phone</label>
+                <input id="phone" name="phone" value={formData.phone} onChange={handleChange} required />
+              </div>
 
-          <div className="form-group full customer-actions">
-            <button className="primary-btn" type="submit">Register Customer</button>
-            <button className="secondary-btn" type="button" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+              <div className="form-group">
+                <label htmlFor="password">Temporary Password</label>
+                <input id="password" name="password" type="password" minLength="6" value={formData.password} onChange={handleChange} required />
+              </div>
+
+              <div className="form-group full">
+                <label htmlFor="address">Address</label>
+                <textarea id="address" name="address" value={formData.address} onChange={handleChange} rows="4" />
+              </div>
+            </div>
+          </section>
+
+          <section className="customer-form-card">
+            <div className="customer-form-card__header">
+              <div>
+                <span className="section-kicker">Vehicle details</span>
+                <h3>Primary vehicle</h3>
+              </div>
+            </div>
+
+            <div className="form-grid">
+              <div className="form-group">
+                <label htmlFor="vehicleMake">Vehicle Make</label>
+                <input id="vehicleMake" name="vehicleMake" value={formData.vehicleMake} onChange={handleChange} required />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="vehicleModel">Vehicle Model</label>
+                <input id="vehicleModel" name="vehicleModel" value={formData.vehicleModel} onChange={handleChange} required />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="vehicleYear">Vehicle Year</label>
+                <input id="vehicleYear" name="vehicleYear" type="number" min="1900" max="2100" value={formData.vehicleYear} onChange={handleChange} required />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="licensePlate">License Plate</label>
+                <input id="licensePlate" name="licensePlate" value={formData.licensePlate} onChange={handleChange} />
+              </div>
+            </div>
+          </section>
+
+          <div className="form-actions staff-form-actions">
+            <button className="primary-btn" type="submit" disabled={submitting}>
+              {submitting ? 'Registering...' : 'Register Customer'}
+            </button>
+            <button className="secondary-btn" type="button" onClick={() => navigate('/dashboard')}>
+              Back to Dashboard
+            </button>
           </div>
         </form>
       </div>
