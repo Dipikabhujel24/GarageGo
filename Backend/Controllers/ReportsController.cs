@@ -21,6 +21,20 @@ namespace Backend.Controllers
             _context = context;
         }
 
+        private async Task<ReportSummary> BuildSummaryAsync(DateTime start, DateTime end)
+        {
+            var salesInRange = await _context.Sales
+                .AsNoTracking()
+                .Where(sale => sale.Date >= start && sale.Date < end)
+                .ToListAsync();
+
+            return new ReportSummary
+            {
+                TotalRevenue = salesInRange.Sum(sale => sale.TotalAmount),
+                TotalOrders = salesInRange.Count
+            };
+        }
+
         [HttpGet("daily")]
         public async Task<ActionResult<ReportSummary>> GetDailyReport()
         {
@@ -28,19 +42,8 @@ namespace Backend.Controllers
             {
                 var today = DateTime.UtcNow.Date;
                 var tomorrow = today.AddDays(1);
-
-                var report = await _context.Sales
-                    .AsNoTracking()
-                    .Where(sale => sale.Date >= today && sale.Date < tomorrow)
-                    .GroupBy(_ => 1)
-                    .Select(group => new ReportSummary
-                    {
-                        TotalRevenue = group.Sum(sale => sale.TotalAmount),
-                        TotalOrders = group.Count()
-                    })
-                    .FirstOrDefaultAsync();
-
-                return Ok(report ?? new ReportSummary { TotalRevenue = 0, TotalOrders = 0 });
+                var report = await BuildSummaryAsync(today, tomorrow);
+                return Ok(report);
             }
             catch (Exception ex)
             {
@@ -56,19 +59,8 @@ namespace Backend.Controllers
                 var today = DateTime.UtcNow.Date;
                 var startOfWeek = today.AddDays(-(int)today.DayOfWeek);
                 var endOfWeek = startOfWeek.AddDays(7);
-
-                var report = await _context.Sales
-                    .AsNoTracking()
-                    .Where(sale => sale.Date >= startOfWeek && sale.Date < endOfWeek)
-                    .GroupBy(_ => 1)
-                    .Select(group => new ReportSummary
-                    {
-                        TotalRevenue = group.Sum(sale => sale.TotalAmount),
-                        TotalOrders = group.Count()
-                    })
-                    .FirstOrDefaultAsync();
-
-                return Ok(report ?? new ReportSummary { TotalRevenue = 0, TotalOrders = 0 });
+                var report = await BuildSummaryAsync(startOfWeek, endOfWeek);
+                return Ok(report);
             }
             catch (Exception ex)
             {
@@ -84,19 +76,8 @@ namespace Backend.Controllers
                 var today = DateTime.UtcNow.Date;
                 var startOfMonth = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
                 var endOfMonth = startOfMonth.AddMonths(1);
-
-                var report = await _context.Sales
-                    .AsNoTracking()
-                    .Where(sale => sale.Date >= startOfMonth && sale.Date < endOfMonth)
-                    .GroupBy(_ => 1)
-                    .Select(group => new ReportSummary
-                    {
-                        TotalRevenue = group.Sum(sale => sale.TotalAmount),
-                        TotalOrders = group.Count()
-                    })
-                    .FirstOrDefaultAsync();
-
-                return Ok(report ?? new ReportSummary { TotalRevenue = 0, TotalOrders = 0 });
+                var report = await BuildSummaryAsync(startOfMonth, endOfMonth);
+                return Ok(report);
             }
             catch (Exception ex)
             {
@@ -112,19 +93,8 @@ namespace Backend.Controllers
                 var today = DateTime.UtcNow.Date;
                 var startOfYear = new DateTime(today.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 var endOfYear = startOfYear.AddYears(1);
-
-                var report = await _context.Sales
-                    .AsNoTracking()
-                    .Where(sale => sale.Date >= startOfYear && sale.Date < endOfYear)
-                    .GroupBy(_ => 1)
-                    .Select(group => new ReportSummary
-                    {
-                        TotalRevenue = group.Sum(sale => sale.TotalAmount),
-                        TotalOrders = group.Count()
-                    })
-                    .FirstOrDefaultAsync();
-
-                return Ok(report ?? new ReportSummary { TotalRevenue = 0, TotalOrders = 0 });
+                var report = await BuildSummaryAsync(startOfYear, endOfYear);
+                return Ok(report);
             }
             catch (Exception ex)
             {

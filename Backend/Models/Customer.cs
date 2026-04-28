@@ -31,5 +31,11 @@ namespace Backend.Models
         public ICollection<CustomerVehicle> Vehicles { get; set; } = new List<CustomerVehicle>();
 
         public ICollection<ServiceHistory> ServiceHistories { get; set; } = new List<ServiceHistory>();
+
+        public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+
+        public ICollection<UnavailablePartRequest> UnavailablePartRequests { get; set; } = new List<UnavailablePartRequest>();
+
+        public ICollection<ServiceReview> ServiceReviews { get; set; } = new List<ServiceReview>();
     }
 }

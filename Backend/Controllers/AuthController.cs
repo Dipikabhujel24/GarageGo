@@ -72,13 +72,25 @@ namespace Backend.Controllers
                 return BadRequest(new { message = "Email is required." });
             }
 
+            // Load customer without including vehicles to avoid failing when DB schema is missing vehicle columns.
             var customer = await _context.Customers
-                .Include(c => c.Vehicles)
                 .FirstOrDefaultAsync(c => c.Email == normalizedEmail);
 
             if (customer == null || !BCrypt.Net.BCrypt.Verify(dto.Password ?? string.Empty, customer.PasswordHash))
             {
                 return Unauthorized(new { message = "Invalid email or password." });
+            }
+
+            // Try to load vehicles separately; if the DB is missing vehicle columns, fall back to empty list.
+            try
+            {
+                customer.Vehicles = await _context.CustomerVehicles
+                    .Where(v => v.CustomerId == customer.Id)
+                    .ToListAsync();
+            }
+            catch (Microsoft.Data.Sqlite.SqliteException)
+            {
+                customer.Vehicles = new List<CustomerVehicle>();
             }
 
             var (token, expiresAtUtc) = _jwtTokenService.GenerateCustomerToken(customer);

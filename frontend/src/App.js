@@ -12,6 +12,8 @@ import AdminLayout from "./components/AdminLayout";
 import Dashboard from "./pages/Dashboard";
 import StaffManagement from "./pages/StaffManagement";
 import Reports from "./pages/Reports";
+import CustomerLookup from "./pages/CustomerLookup";
+import CustomerServiceRequests from "./pages/CustomerServiceRequests";
 
 import "./App.css";
 import "./styles/theme.css";
@@ -25,8 +27,9 @@ function PortalHome() {
           <p className="portal-eyebrow">Merged Workspace</p>
           <h1>GarageGo</h1>
           <p className="portal-copy">
-            Both merged branches are available here. Choose the customer flow from
-            Nirjala's work or open the admin pages from Khushi's branch.
+            All merged branches are available here. Open Nirjala&apos;s customer
+            portal, Khushi&apos;s admin pages, or the dedicated customer-features
+            tools from the merged workspace.
           </p>
         </div>
 
@@ -43,6 +46,12 @@ function PortalHome() {
               </Link>
               <Link to="/register" className="portal-button secondary">
                 Register Customer
+              </Link>
+              <Link to="/dashboard" className="portal-button secondary">
+                Customer Dashboard
+              </Link>
+              <Link to="/history" className="portal-button secondary">
+                Service & Purchase History
               </Link>
             </div>
           </section>
@@ -62,6 +71,23 @@ function PortalHome() {
               </Link>
               <Link to="/admin/reports" className="portal-button secondary">
                 Reports
+              </Link>
+            </div>
+          </section>
+
+          <section className="portal-card">
+            <span className="portal-badge">customer-features Branch</span>
+            <h2>Customer Features</h2>
+            <p>
+              Open the merged customer lookup and service-request pages from the
+              customer-features branch.
+            </p>
+            <div className="portal-actions">
+              <Link to="/admin/customers" className="portal-button primary">
+                Customer Lookup
+              </Link>
+              <Link to="/admin/customer-services" className="portal-button secondary">
+                Customer Services
               </Link>
             </div>
           </section>
@@ -88,6 +114,8 @@ function App() {
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="staff-management" element={<StaffManagement />} />
+          <Route path="customers" element={<CustomerLookup />} />
+          <Route path="customer-services" element={<CustomerServiceRequests />} />
           <Route path="reports" element={<Reports />} />
         </Route>
 

@@ -1,19 +1,38 @@
-# GarageGo_DipikaBhujel
+# GarageGo
 
-This project was bootstrapped with Create React App.
+GarageGo is a garage management project with an ASP.NET Core backend and a React frontend.
 
-## Available Scripts
+## Backend
 
-In the project directory, you can run:
+The backend is in `Backend/` and uses:
 
-### `npm start`
+- ASP.NET Core Web API
+- Entity Framework Core
+- SQLite for local development
+- Swagger for API testing
 
-Runs the app in development mode.
+Run it with:
 
-### `npm test`
+```powershell
+cd Backend
+dotnet restore
+dotnet build
+dotnet run
+```
 
-Launches the test runner in interactive watch mode.
+## Frontend
 
-### `npm run build`
+The main frontend is in `frontend/`.
 
-Builds the app for production to the `build` folder.
+Run it with:
+
+```powershell
+cd frontend
+npm install
+npm start
+```
+
+## Notes
+
+- The default backend connection string is configured in `Backend/appsettings.json`.
+- The customer portal uses the `/api/auth/*` and `/api/customers/*` routes.

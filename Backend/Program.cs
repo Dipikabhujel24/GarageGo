@@ -82,7 +82,13 @@ catch (Exception ex)
 
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseHttpsRedirection();
+
+var httpsPort = app.Configuration["ASPNETCORE_HTTPS_PORT"] ?? app.Configuration["HTTPS_PORT"];
+if (!string.IsNullOrWhiteSpace(httpsPort))
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors(FrontendCorsPolicy);
 app.UseAuthentication();
 app.UseAuthorization();
@@ -287,6 +293,39 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
             END,
                 "PaymentStatus" = COALESCE(NULLIF(TRIM("PaymentStatus"), ''), 'Paid');
             """);
+    }
+
+    // Ensure CustomerVehicles has expected columns added by newer code
+    var vehicleColumns = await GetTableColumnsAsync(connection, providerName, "CustomerVehicles");
+
+    if (!vehicleColumns.Contains("VehicleNumber"))
+    {
+        await EnsureSqlAsync(db, "ALTER TABLE \"CustomerVehicles\" ADD COLUMN \"VehicleNumber\" TEXT NOT NULL DEFAULT '';"
+        );
+        vehicleColumns.Add("VehicleNumber");
+    }
+
+    if (!vehicleColumns.Contains("Color"))
+    {
+        await EnsureSqlAsync(db, "ALTER TABLE \"CustomerVehicles\" ADD COLUMN \"Color\" TEXT NOT NULL DEFAULT '';"
+        );
+        vehicleColumns.Add("Color");
+    }
+
+    if (!vehicleColumns.Contains("VehicleType"))
+    {
+        await EnsureSqlAsync(db, "ALTER TABLE \"CustomerVehicles\" ADD COLUMN \"VehicleType\" TEXT NOT NULL DEFAULT '';"
+        );
+        vehicleColumns.Add("VehicleType");
+    }
+
+    if (!vehicleColumns.Contains("CreatedAt"))
+    {
+        // SQLite disallows adding a column with a non-constant default via ALTER TABLE.
+        // Add a nullable column, then populate existing rows with the current timestamp.
+        await EnsureSqlAsync(db, "ALTER TABLE \"CustomerVehicles\" ADD COLUMN \"CreatedAt\" TEXT NULL DEFAULT NULL;");
+        await EnsureSqlAsync(db, "UPDATE \"CustomerVehicles\" SET \"CreatedAt\" = datetime('now') WHERE \"CreatedAt\" IS NULL;");
+        vehicleColumns.Add("CreatedAt");
     }
 }
 

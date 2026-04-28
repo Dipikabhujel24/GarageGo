@@ -22,6 +22,19 @@ namespace Backend.Models
         [MaxLength(50)]
         public string LicensePlate { get; set; } = string.Empty;
 
+        [MaxLength(30)]
+        public string VehicleNumber { get; set; } = string.Empty;
+
+        [MaxLength(40)]
+        public string Color { get; set; } = string.Empty;
+
+        [MaxLength(60)]
+        public string VehicleType { get; set; } = string.Empty;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
         public ICollection<ServiceHistory> ServiceHistories { get; set; } = new List<ServiceHistory>();
+
+        public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
     }
 }

@@ -4,6 +4,8 @@ import { NavLink } from 'react-router-dom';
 const navItems = [
   { label: 'Dashboard', path: '/admin/dashboard' },
   { label: 'Staff Management', path: '/admin/staff-management' },
+  { label: 'Customer Lookup', path: '/admin/customers' },
+  { label: 'Customer Services', path: '/admin/customer-services' },
   { label: 'Reports', path: '/admin/reports' },
 ];
 

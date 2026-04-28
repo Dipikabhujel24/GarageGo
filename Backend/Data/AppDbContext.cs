@@ -17,6 +17,9 @@ namespace Backend.Data
         public DbSet<Staff> Staff { get; set; } = null!;
         public DbSet<Vendor> Vendors { get; set; } = null!;
         public DbSet<Part> Parts { get; set; } = null!;
+        public DbSet<Appointment> Appointments { get; set; } = null!;
+        public DbSet<UnavailablePartRequest> UnavailablePartRequests { get; set; } = null!;
+        public DbSet<ServiceReview> ServiceReviews { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -44,6 +47,30 @@ namespace Backend.Data
                 .HasForeignKey(history => history.VehicleId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<CustomerVehicle>()
+                .HasMany(vehicle => vehicle.Appointments)
+                .WithOne()
+                .HasForeignKey(appointment => appointment.VehicleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Customer>()
+                .HasMany(customer => customer.Appointments)
+                .WithOne()
+                .HasForeignKey(appointment => appointment.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Customer>()
+                .HasMany(customer => customer.UnavailablePartRequests)
+                .WithOne()
+                .HasForeignKey(request => request.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Customer>()
+                .HasMany(customer => customer.ServiceReviews)
+                .WithOne()
+                .HasForeignKey(review => review.CustomerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             modelBuilder.Entity<ServiceHistory>(entity =>
             {
                 entity.Property(history => history.HistoryType).HasMaxLength(20);
@@ -51,6 +78,7 @@ namespace Backend.Data
                 entity.Property(history => history.Description).HasMaxLength(1000);
                 entity.Property(history => history.PaymentStatus).HasMaxLength(20);
                 entity.Property(history => history.InvoiceNumber).HasMaxLength(50);
+                entity.Property(history => history.Amount).HasColumnType("numeric(18,2)");
             });
 
             modelBuilder.Entity<Staff>()
