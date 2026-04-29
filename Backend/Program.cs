@@ -3,6 +3,7 @@ using Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using System.Data.Common;
 using System.Text;
 
@@ -39,10 +40,24 @@ builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
 var resolvedConnectionString =
     builder.Configuration.GetConnectionString("DefaultConnection") ??
+    builder.Configuration.GetConnectionString("PostgresConnection") ??
     "Data Source=garagego-local.db";
 
+var usePostgres = LooksLikePostgresConnectionString(resolvedConnectionString);
+var normalizedConnectionString = usePostgres
+    ? NormalizePostgresConnectionString(resolvedConnectionString)
+    : resolvedConnectionString;
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite(resolvedConnectionString));
+{
+    if (usePostgres)
+    {
+        options.UseNpgsql(normalizedConnectionString);
+        return;
+    }
+
+    options.UseSqlite(normalizedConnectionString);
+});
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "garagego_super_secret_key_123456789";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
@@ -321,10 +336,19 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
 
     if (!vehicleColumns.Contains("CreatedAt"))
     {
-        // SQLite disallows adding a column with a non-constant default via ALTER TABLE.
-        // Add a nullable column, then populate existing rows with the current timestamp.
-        await EnsureSqlAsync(db, "ALTER TABLE \"CustomerVehicles\" ADD COLUMN \"CreatedAt\" TEXT NULL DEFAULT NULL;");
-        await EnsureSqlAsync(db, "UPDATE \"CustomerVehicles\" SET \"CreatedAt\" = datetime('now') WHERE \"CreatedAt\" IS NULL;");
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"CustomerVehicles\" ADD COLUMN \"CreatedAt\" timestamp with time zone NULL;");
+            await EnsureSqlAsync(db, "UPDATE \"CustomerVehicles\" SET \"CreatedAt\" = CURRENT_TIMESTAMP WHERE \"CreatedAt\" IS NULL;");
+        }
+        else
+        {
+            // SQLite disallows adding a column with a non-constant default via ALTER TABLE.
+            // Add a nullable column, then populate existing rows with the current timestamp.
+            await EnsureSqlAsync(db, "ALTER TABLE \"CustomerVehicles\" ADD COLUMN \"CreatedAt\" TEXT NULL DEFAULT NULL;");
+            await EnsureSqlAsync(db, "UPDATE \"CustomerVehicles\" SET \"CreatedAt\" = datetime('now') WHERE \"CreatedAt\" IS NULL;");
+        }
+
         vehicleColumns.Add("CreatedAt");
     }
 }
@@ -389,6 +413,13 @@ static async Task EnsureTableAsync(
         return;
     }
 
+    if (IsPostgresProvider(db.Database.ProviderName))
+    {
+        await EnsureSqlAsync(db, postgresSql);
+        existingTables.Add(tableName);
+        return;
+    }
+
     await EnsureSqlAsync(db, sqliteSql);
 
     existingTables.Add(tableName);
@@ -398,3 +429,82 @@ static async Task EnsureSqlAsync(AppDbContext db, string sql)
 {
     await db.Database.ExecuteSqlRawAsync(sql);
 }
+
+static bool LooksLikePostgresConnectionString(string connectionString)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        return false;
+    }
+
+    return connectionString.StartsWith("Host=", StringComparison.OrdinalIgnoreCase)
+        || connectionString.StartsWith("Server=", StringComparison.OrdinalIgnoreCase)
+        || connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        || connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
+}
+
+static string NormalizePostgresConnectionString(string connectionString)
+{
+    if (!connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+        && !connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        return connectionString;
+    }
+
+    if (!Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
+    {
+        return connectionString;
+    }
+
+    var userInfoParts = uri.UserInfo.Split(':', 2);
+    var username = userInfoParts.Length > 0 ? Uri.UnescapeDataString(userInfoParts[0]) : string.Empty;
+    var password = userInfoParts.Length > 1 ? Uri.UnescapeDataString(userInfoParts[1]) : string.Empty;
+    var database = uri.AbsolutePath.Trim('/').Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? string.Empty;
+
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.IsDefaultPort ? 5432 : uri.Port,
+        Database = database,
+        Username = username,
+        Password = password
+    };
+
+    var query = ParseConnectionStringQuery(uri.Query);
+
+    if (query.TryGetValue("sslmode", out var sslMode)
+        && Enum.TryParse<SslMode>(sslMode, true, out var parsedSslMode))
+    {
+        builder.SslMode = parsedSslMode;
+    }
+
+    return builder.ConnectionString;
+}
+
+static Dictionary<string, string> ParseConnectionStringQuery(string queryString)
+{
+    var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    if (string.IsNullOrWhiteSpace(queryString))
+    {
+        return values;
+    }
+
+    foreach (var segment in queryString.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+    {
+        var parts = segment.Split('=', 2);
+        var key = Uri.UnescapeDataString(parts[0]).Replace('+', ' ').Trim();
+        var value = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]).Replace('+', ' ').Trim() : string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(key))
+        {
+            values[key] = value;
+        }
+    }
+
+    return values;
+}
+
+static bool IsPostgresProvider(string? providerName) =>
+    !string.IsNullOrWhiteSpace(providerName)
+    && providerName.Contains("Npgsql", StringComparison.OrdinalIgnoreCase);

@@ -5,6 +5,7 @@ using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Data.Common;
 using System.Security.Claims;
 
 namespace Backend.Controllers
@@ -88,7 +89,7 @@ namespace Backend.Controllers
                     .Where(v => v.CustomerId == customer.Id)
                     .ToListAsync();
             }
-            catch (Microsoft.Data.Sqlite.SqliteException)
+            catch (DbException)
             {
                 customer.Vehicles = new List<CustomerVehicle>();
             }
