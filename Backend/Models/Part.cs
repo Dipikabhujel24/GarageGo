@@ -25,5 +25,6 @@ namespace Backend.Models
         public Vendor? Vendor { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? LastLowStockNotifiedAt { get; set; }
     }
 }

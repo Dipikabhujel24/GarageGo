@@ -37,5 +37,8 @@ namespace Backend.Models
 
         [Required]
         public DateTime ServiceDate { get; set; }
+
+        // Timestamp when a payment reminder was last sent for overdue credit
+        public DateTime? ReminderSentAt { get; set; }
     }
 }
