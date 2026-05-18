@@ -23,6 +23,8 @@ const CombinedRegister = () => {
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showOtp, setShowOtp] = useState(false);
+    const [otp, setOtp] = useState('');
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -60,12 +62,19 @@ const CombinedRegister = () => {
             logApiResponse('POST /api/auth/register', response, data);
 
             if (response.ok) {
-                setMessage(data.message || 'Registration successful!');
-                storeAuthSession({ token: data.token, user: data.user });
+                // If backend returned a token, registration completed (legacy path)
+                if (data.token) {
+                    setMessage(data.message || 'Registration successful!');
+                    storeAuthSession({ token: data.token, user: data.user });
 
-                // Reset and navigate
-                setFormData({ name: '', email: '', phone: '', password: '', address: '', vehicleMake: '', vehicleModel: '', vehicleYear: '', licensePlate: '' });
-                navigate(getDashboardPathForRole(data.user?.role));
+                    // Reset and navigate
+                    setFormData({ name: '', email: '', phone: '', password: '', address: '', vehicleMake: '', vehicleModel: '', vehicleYear: '', licensePlate: '' });
+                    navigate(getDashboardPathForRole(data.user?.role));
+                } else {
+                    // OTP flow: show OTP input
+                    setMessage(data.message || 'Verification required. Enter the code sent to your email.');
+                    setShowOtp(true);
+                }
             } else {
                 setError(getApiErrorMessage(data, 'Registration failed. Please check the inputs.'));
                 if (data.errors) console.error('Validation errors:', data.errors);
@@ -89,7 +98,8 @@ const CombinedRegister = () => {
                     {message && <div className="success-message">{message}</div>}
                     {error && <div className="error-message">{error}</div>}
 
-                    <form onSubmit={handleSubmit}>
+                    {!showOtp && (
+                        <form onSubmit={handleSubmit}>
                         <fieldset>
                             <legend>Personal Information</legend>
                             <div className="form-group">
@@ -135,7 +145,41 @@ const CombinedRegister = () => {
                             </fieldset>
 
                         <button type="submit" className="submit-btn" disabled={loading}>{loading ? 'Creating Account...' : 'Create Account'}</button>
-                    </form>
+                        </form>
+                    )}
+
+                    {showOtp && (
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            setLoading(true);
+                            try {
+                                const resp = await fetch(apiUrl('/api/auth/verify-email'), {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ email: formData.email, code: otp })
+                                });
+                                const vdata = await readApiResponse(resp);
+                                logApiResponse('POST /api/auth/verify-email', resp, vdata);
+                                if (resp.ok) {
+                                    setMessage(vdata.message || 'Verification successful.');
+                                    storeAuthSession({ token: vdata.token, user: vdata.user });
+                                    navigate(getDashboardPathForRole(vdata.user?.role));
+                                } else {
+                                    setError(getApiErrorMessage(vdata, 'Verification failed.'));
+                                }
+                            } catch (err) {
+                                setError(`Cannot connect to backend at ${API_BASE}.`);
+                            } finally {
+                                setLoading(false);
+                            }
+                        }}>
+                            <div className="form-group">
+                                <label>Verification code</label>
+                                <input type="text" name="otp" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="123456" required />
+                            </div>
+                            <button type="submit" className="submit-btn" disabled={loading}>{loading ? 'Verifying...' : 'Verify Email'}</button>
+                        </form>
+                    )}
 
                     <div className="login-link-container">
                         <p>Already have an account? <Link to="/login" className="login-link">Sign In</Link></p>
