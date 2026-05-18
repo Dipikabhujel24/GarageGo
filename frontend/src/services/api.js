@@ -1,25 +1,36 @@
+import { getApiErrorMessage, readApiResponse } from '../config/api';
+import { getStoredToken } from '../utils/authSession';
+
 const API_BASE_URL = 'http://localhost:5000/api';
 
 const request = async (path, options = {}) => {
+  const token = getStoredToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
     ...options,
   });
 
+  const data = await readApiResponse(response);
+
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || `Request failed with status ${response.status}`);
+    throw new Error(
+      getApiErrorMessage(data, `Request failed with status ${response.status}`)
+    );
   }
 
   if (response.status === 204) {
     return { data: null };
   }
 
-  return { data: await response.json() };
+  return { data };
 };
+
+export const extractApiError = (error, fallbackMessage = 'Request failed') =>
+  error?.message || fallbackMessage;
 
 export const getVendors = () => request('/vendors');
 
@@ -57,4 +68,18 @@ export const updatePart = (id, data) =>
 export const deletePart = (id) =>
   request(`/parts/${id}`, {
     method: 'DELETE',
+  });
+
+export const getSalesCatalog = () => request('/sales/catalog');
+
+export const createSale = (data) =>
+  request('/sales', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const sendInvoiceEmail = (payload) =>
+  request('/sales/send-email', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });

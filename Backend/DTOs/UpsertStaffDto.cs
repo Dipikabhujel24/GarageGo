@@ -15,9 +15,5 @@ namespace Backend.DTOs
 
         [MaxLength(255)]
         public string? Password { get; set; }
-
-        [Required]
-        [RegularExpression("^(Admin|Staff)$")]
-        public string Role { get; set; } = "Staff";
     }
 }

@@ -11,10 +11,7 @@ const initialFormState = {
   name: '',
   email: '',
   password: '',
-  role: 'Staff',
 };
-
-const STAFF_ROLES = ['Admin', 'Staff'];
 
 function resolveStaffId(staffMember) {
   return staffMember.id ?? staffMember.staffId ?? staffMember.userId;
@@ -111,33 +108,6 @@ function StaffForm({
         {fieldErrors.password ? (
           <p className="field-error" id="password-error">
             {fieldErrors.password}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="form-group">
-        <label className="form-label" htmlFor="role">
-          Role
-        </label>
-        <select
-          id="role"
-          name="role"
-          className="input-field"
-          value={formData.role}
-          onChange={onFieldChange}
-          aria-invalid={Boolean(fieldErrors.role)}
-          aria-describedby={fieldErrors.role ? 'role-error' : undefined}
-          required
-        >
-          {STAFF_ROLES.map((role) => (
-            <option key={role} value={role}>
-              {role}
-            </option>
-          ))}
-        </select>
-        {fieldErrors.role ? (
-          <p className="field-error" id="role-error">
-            {fieldErrors.role}
           </p>
         ) : null}
       </div>
@@ -334,7 +304,6 @@ function StaffManagement() {
     if (!formData.email.trim()) nextFieldErrors.email = 'Email is required.';
     if (!isEditing && !formData.password.trim())
       nextFieldErrors.password = 'Password is required.';
-    if (!formData.role.trim()) nextFieldErrors.role = 'Role is required.';
 
     setFieldErrors(nextFieldErrors);
     return Object.keys(nextFieldErrors).length === 0;
@@ -353,7 +322,6 @@ function StaffManagement() {
     const staffPayload = {
       name: formData.name.trim(),
       email: formData.email.trim(),
-      role: formData.role,
     };
 
     // Only send password during create or when it is explicitly changed during edit.
@@ -397,7 +365,6 @@ function StaffManagement() {
       name: staffMember.name ?? '',
       email: staffMember.email ?? '',
       password: '',
-      role: staffMember.role ?? 'Staff',
     });
     setMessage('Editing mode enabled. Update details and click Save Changes.');
     setMessageType('success');
@@ -449,8 +416,8 @@ function StaffManagement() {
       <div className="page-header-card card">
         <h2 className="section-title card-title">Staff Management</h2>
         <p className="section-copy">
-          Create and manage staff records for GarageGo administrators and team
-          members.
+          Create and manage staff login accounts that are issued by GarageGo
+          administrators.
         </p>
       </div>
 

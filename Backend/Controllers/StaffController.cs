@@ -1,6 +1,7 @@
 using Backend.Data;
 using Backend.DTOs;
 using Backend.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,11 +18,14 @@ namespace Backend.Controllers
             _context = context;
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetAllStaff()
         {
-            var staffMembers = await _context.Staff
+            var staffMembers = await _context.StaffProfiles
                 .AsNoTracking()
+                .Include(staff => staff.User)
+                .Where(staff => staff.User != null && staff.User.Role == "Staff")
                 .OrderBy(staff => staff.Name)
                 .Select(staff => MapStaffResponse(staff))
                 .ToListAsync();
@@ -29,12 +33,14 @@ namespace Backend.Controllers
             return Ok(staffMembers);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpGet("{id:int}")]
         public async Task<ActionResult<object>> GetStaffById(int id)
         {
-            var staffMember = await _context.Staff
+            var staffMember = await _context.StaffProfiles
                 .AsNoTracking()
-                .FirstOrDefaultAsync(staff => staff.Id == id);
+                .Include(staff => staff.User)
+                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && staff.User.Role == "Staff");
 
             if (staffMember is null)
             {
@@ -44,6 +50,7 @@ namespace Backend.Controllers
             return Ok(MapStaffResponse(staffMember));
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<ActionResult<object>> CreateStaff([FromBody] UpsertStaffDto dto)
         {
@@ -52,52 +59,79 @@ namespace Backend.Controllers
                 return BadRequest(new { message = "Password is required when creating staff." });
             }
 
-            var email = dto.Email.Trim().ToLowerInvariant();
-            var emailExists = await _context.Staff.AnyAsync(staff => staff.Email.ToLower() == email);
+            var email = NormalizeEmail(dto.Email);
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return BadRequest(new { message = "Email is required." });
+            }
+
+            var emailExists = await _context.Users.AnyAsync(user => user.Email == email);
 
             if (emailExists)
             {
-                return Conflict(new { message = "A staff member with this email already exists." });
+                return Conflict(new { message = "An account with this email already exists." });
             }
 
-            var entity = new Staff
+            var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            var user = new AppUser
             {
-                Name = dto.Name.Trim(),
                 Email = email,
-                Password = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                Role = dto.Role
+                PasswordHash = passwordHash,
+                Role = "Staff",
+                Status = "Active"
             };
 
-            _context.Staff.Add(entity);
+            var profile = new StaffProfile
+            {
+                User = user,
+                Name = dto.Name.Trim(),
+                LegacyEmail = email,
+                LegacyPasswordHash = passwordHash,
+                LegacyRole = "Staff"
+            };
+
+            _context.StaffProfiles.Add(profile);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetStaffById), new { id = entity.Id }, MapStaffResponse(entity));
+            return CreatedAtAction(nameof(GetStaffById), new { id = profile.Id }, MapStaffResponse(profile));
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id:int}")]
         public async Task<ActionResult<object>> UpdateStaff(int id, [FromBody] UpsertStaffDto dto)
         {
-            var entity = await _context.Staff.FirstOrDefaultAsync(staff => staff.Id == id);
-            if (entity is null)
+            var entity = await _context.StaffProfiles
+                .Include(staff => staff.User)
+                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && staff.User.Role == "Staff");
+
+            if (entity is null || entity.User is null)
             {
                 return NotFound(new { message = "Staff member not found." });
             }
 
-            var email = dto.Email.Trim().ToLowerInvariant();
-            var duplicateEmail = await _context.Staff.AnyAsync(staff => staff.Id != id && staff.Email.ToLower() == email);
+            var email = NormalizeEmail(dto.Email);
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return BadRequest(new { message = "Email is required." });
+            }
+
+            var duplicateEmail = await _context.Users.AnyAsync(user => user.Id != entity.User.Id && user.Email == email);
 
             if (duplicateEmail)
             {
-                return Conflict(new { message = "Another staff member already uses this email." });
+                return Conflict(new { message = "Another account already uses this email." });
             }
 
             entity.Name = dto.Name.Trim();
-            entity.Email = email;
-            entity.Role = dto.Role;
+            entity.User.Email = email;
+            entity.LegacyEmail = email;
+            entity.LegacyRole = "Staff";
 
             if (!string.IsNullOrWhiteSpace(dto.Password))
             {
-                entity.Password = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+                var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+                entity.User.PasswordHash = passwordHash;
+                entity.LegacyPasswordHash = passwordHash;
             }
 
             await _context.SaveChangesAsync();
@@ -105,43 +139,59 @@ namespace Backend.Controllers
             return Ok(MapStaffResponse(entity));
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteStaff(int id)
         {
-            var entity = await _context.Staff.FirstOrDefaultAsync(staff => staff.Id == id);
-            if (entity is null)
+            var entity = await _context.StaffProfiles
+                .Include(staff => staff.User)
+                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && staff.User.Role == "Staff");
+
+            if (entity is null || entity.User is null)
             {
                 return NotFound(new { message = "Staff member not found." });
             }
 
-            _context.Staff.Remove(entity);
+            _context.Users.Remove(entity.User);
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
+        [Authorize(Roles = "Staff")]
         [HttpPost("customers")]
         public async Task<IActionResult> RegisterCustomerByStaff([FromBody] StaffRegisterCustomerDto dto)
         {
-            var normalizedEmail = (dto.Email ?? string.Empty).Trim().ToLowerInvariant();
+            var normalizedEmail = NormalizeEmail(dto.Email);
 
             if (string.IsNullOrWhiteSpace(normalizedEmail))
             {
                 return BadRequest(new { message = "Email is required." });
             }
 
-            if (await _context.Customers.AnyAsync(customer => customer.Email == normalizedEmail))
+            if (await _context.Users.AnyAsync(user => user.Email == normalizedEmail))
             {
                 return Conflict(new { message = "An account with this email already exists." });
             }
 
-            var customer = new Customer
+            var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password ?? string.Empty);
+            var user = new AppUser
             {
-                Name = (dto.Name ?? string.Empty).Trim(),
                 Email = normalizedEmail,
+                PasswordHash = passwordHash,
+                Role = "Customer",
+                Status = "Active"
+            };
+
+            var customer = new CustomerProfile
+            {
+                User = user,
+                Name = (dto.Name ?? string.Empty).Trim(),
                 Phone = (dto.Phone ?? string.Empty).Trim(),
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password ?? string.Empty),
                 Address = (dto.Address ?? string.Empty).Trim(),
+                LegacyEmail = normalizedEmail,
+                LegacyPasswordHash = passwordHash,
+                LegacyRole = "Customer",
                 Vehicles =
                 [
                     new CustomerVehicle
@@ -154,7 +204,7 @@ namespace Backend.Controllers
                 ]
             };
 
-            _context.Customers.Add(customer);
+            _context.CustomerProfiles.Add(customer);
             await _context.SaveChangesAsync();
 
             var vehicle = customer.Vehicles.First();
@@ -166,10 +216,12 @@ namespace Backend.Controllers
                 customer = new
                 {
                     id = customer.Id,
+                    userId = user.Id,
                     name = customer.Name,
-                    email = customer.Email,
+                    email = user.Email,
                     phone = customer.Phone,
-                    address = customer.Address
+                    address = customer.Address,
+                    role = user.Role
                 },
                 vehicle = new
                 {
@@ -182,15 +234,19 @@ namespace Backend.Controllers
             });
         }
 
-        private static object MapStaffResponse(Staff staff)
+        private static object MapStaffResponse(StaffProfile staff)
         {
             return new
             {
                 id = staff.Id,
+                userId = staff.User?.Id ?? 0,
                 name = staff.Name,
-                email = staff.Email,
-                role = staff.Role
+                email = staff.User?.Email ?? staff.LegacyEmail,
+                role = staff.User?.Role ?? staff.LegacyRole
             };
         }
+
+        private static string NormalizeEmail(string? email) =>
+            (email ?? string.Empty).Trim().ToLowerInvariant();
     }
 }

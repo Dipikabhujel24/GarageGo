@@ -11,6 +11,17 @@ const staffApi = axios.create({
   },
 });
 
+staffApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
 export function extractApiErrorMessage(error, fallbackMessage) {
   if (error?.code === 'ECONNABORTED') {
     return 'The request timed out. Please verify the backend server is running.';

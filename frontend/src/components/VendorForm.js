@@ -6,6 +6,7 @@ const initialForm = {
   phone: '',
   email: '',
   address: '',
+  status: 'Active',
 };
 
 function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
@@ -27,6 +28,7 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
       phone: selectedVendor.phone || '',
       email: selectedVendor.email || '',
       address: selectedVendor.address || '',
+      status: selectedVendor.status || 'Active',
     });
     setError('');
   }, [selectedVendor]);
@@ -126,6 +128,20 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           placeholder="Enter business address"
           required
         />
+      </label>
+
+      <label className="inventory-field">
+        <span>Status</span>
+        <select
+          className="input-field"
+          name="status"
+          value={form.status}
+          onChange={handleChange}
+          required
+        >
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
       </label>
 
       <div className="inventory-action-row inventory-span-two">

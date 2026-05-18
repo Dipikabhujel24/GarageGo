@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
+import { clearAuthSession, getStoredToken } from '../../utils/authSession';
 import './CustomerModule.css';
 
 const initialForm = {
@@ -36,10 +37,12 @@ function StaffAddCustomer() {
     setCreatedSummary(null);
 
     try {
+      const token = getStoredToken();
       const response = await fetch(`${API_BASE}/api/staff/customers`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
         body: JSON.stringify({
           ...formData,
@@ -49,8 +52,14 @@ function StaffAddCustomer() {
 
       const data = await readApiResponse(response);
 
+      if (response.status === 401) {
+        clearAuthSession();
+        navigate('/login');
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(getApiErrorMessage(data, 'Failed to register customer from staff portal.'));
+        throw new Error(getApiErrorMessage(data, 'Failed to register customer from the GarageGo workspace.'));
       }
 
       setMessage(data.message || 'Customer registered successfully by staff.');
@@ -63,7 +72,7 @@ function StaffAddCustomer() {
       });
       setFormData(initialForm);
     } catch (err) {
-      setError(err.message || 'Failed to register customer from staff portal.');
+      setError(err.message || 'Failed to register customer from the GarageGo workspace.');
     } finally {
       setSubmitting(false);
     }
@@ -178,7 +187,7 @@ function StaffAddCustomer() {
             <button className="primary-btn" type="submit" disabled={submitting}>
               {submitting ? 'Registering...' : 'Register Customer'}
             </button>
-            <button className="secondary-btn" type="button" onClick={() => navigate('/dashboard')}>
+            <button className="secondary-btn" type="button" onClick={() => navigate('/staff/dashboard')}>
               Back to Dashboard
             </button>
           </div>

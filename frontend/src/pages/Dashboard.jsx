@@ -92,8 +92,8 @@ function Dashboard() {
 
     return [
       { label: 'Total Revenue', value: formatCurrency(totalRevenue) },
-      { label: 'Total Orders', value: totalOrders.toLocaleString() },
-      { label: 'Average Order Value', value: formatCurrency(averageOrderValue) },
+      { label: 'Total Sales', value: totalOrders.toLocaleString() },
+      { label: 'Average Sale Value', value: formatCurrency(averageOrderValue) },
     ];
   }, [chartData]);
 
@@ -111,10 +111,9 @@ function Dashboard() {
   return (
     <section className="container">
       <div className="page-header-card card">
-        <h2 className="section-title card-title">Overview</h2>
+        <h2 className="section-title card-title">Admin Dashboard</h2>
         <p className="section-copy">
-          Welcome to the GarageGo admin dashboard. This area gives you a quick
-          snapshot of your operations.
+          Review revenue, sales, and operational performance from the GarageGo admin workspace.
         </p>
       </div>
 

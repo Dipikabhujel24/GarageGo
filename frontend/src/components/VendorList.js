@@ -14,6 +14,7 @@ function VendorList({ vendors, onEdit, onDelete }) {
           <tr>
             <th>Vendor</th>
             <th>Company</th>
+            <th>Status</th>
             <th>Phone</th>
             <th>Email</th>
             <th>Address</th>
@@ -27,6 +28,7 @@ function VendorList({ vendors, onEdit, onDelete }) {
                 <strong>{vendor.vendorName}</strong>
               </td>
               <td>{vendor.companyName}</td>
+              <td>{vendor.status || 'Active'}</td>
               <td>{vendor.phone}</td>
               <td>{vendor.email}</td>
               <td>{vendor.address}</td>

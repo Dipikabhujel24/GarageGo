@@ -127,8 +127,8 @@ function PartsManagement() {
             <div>
               <h3 className="staff-card-title card-title">Parts Inventory</h3>
               <p className="section-copy">
-                Review stock levels and update part records from the merged admin
-                workspace.
+                Review stock levels and update part records from the GarageGo
+                operations workspace.
               </p>
             </div>
           </div>

@@ -1,32 +1,45 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Backend.Models
 {
-    public class Customer
+    [Table("Customers")]
+    public class CustomerProfile
     {
         public int Id { get; set; }
+
+        public int? UserId { get; set; }
+        public AppUser? User { get; set; }
 
         [Required]
         [MaxLength(100)]
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        [EmailAddress]
-        [MaxLength(150)]
-        public string Email { get; set; } = string.Empty;
-
-        [Required]
         [Phone]
         [MaxLength(20)]
         public string Phone { get; set; } = string.Empty;
-
-        [Required]
-        public string PasswordHash { get; set; } = string.Empty;
 
         [MaxLength(250)]
         public string Address { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // Legacy auth snapshot columns kept for compatibility with the existing schema.
+        [Required]
+        [EmailAddress]
+        [MaxLength(150)]
+        [Column("Email")]
+        public string LegacyEmail { get; set; } = string.Empty;
+
+        [Required]
+        [Column("PasswordHash")]
+        public string LegacyPasswordHash { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(30)]
+        [Column("Role")]
+        public string LegacyRole { get; set; } = "Customer";
 
         public ICollection<CustomerVehicle> Vehicles { get; set; } = new List<CustomerVehicle>();
 

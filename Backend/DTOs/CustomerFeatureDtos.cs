@@ -3,9 +3,6 @@ using System.ComponentModel.DataAnnotations;
 public class CreateAppointmentDto
 {
     [Required]
-    public int CustomerId { get; set; }
-
-    [Required]
     public int VehicleId { get; set; }
 
     [Required]
@@ -21,9 +18,6 @@ public class CreateAppointmentDto
 public class CreateUnavailablePartRequestDto
 {
     [Required]
-    public int CustomerId { get; set; }
-
-    [Required]
     [MaxLength(160)]
     public string PartName { get; set; } = string.Empty;
 
@@ -36,9 +30,6 @@ public class CreateUnavailablePartRequestDto
 
 public class CreateServiceReviewDto
 {
-    [Required]
-    public int CustomerId { get; set; }
-
     [Range(1, 5)]
     public int Rating { get; set; }
 

@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   bookAppointment,
+  getMyVehicles,
+  getServiceTypes,
   requestUnavailablePart,
   reviewService,
 } from '../services/customerFeatureService';
+import { getStoredAuthUser } from '../utils/authSession';
 
 const initialAppointment = {
   vehicleId: '',
@@ -23,28 +26,67 @@ const initialReview = {
   comment: '',
 };
 
-function getStoredCustomerId() {
-  try {
-    const customer = JSON.parse(localStorage.getItem('customer') || '{}');
-    return customer.id ? String(customer.id) : '';
-  } catch {
-    return '';
-  }
-}
-
 function CustomerServiceRequests() {
-  const [customerId, setCustomerId] = useState(getStoredCustomerId());
+  const customer = getStoredAuthUser();
+  const customerName = customer?.name || 'Customer';
+  const [vehicles, setVehicles] = useState([]);
+  const [serviceTypes, setServiceTypes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [appointment, setAppointment] = useState(initialAppointment);
   const [partRequest, setPartRequest] = useState(initialPartRequest);
   const [review, setReview] = useState(initialReview);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const handleCustomerLoad = async (event) => {
-    event.preventDefault();
-    setMessage('');
-    setError('');
-  };
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadRequestOptions = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const [loadedVehicles, loadedServiceTypes] = await Promise.all([
+          getMyVehicles(),
+          getServiceTypes(),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        const normalizedVehicles = Array.isArray(loadedVehicles) ? loadedVehicles : [];
+        const normalizedServiceTypes = Array.isArray(loadedServiceTypes) ? loadedServiceTypes : [];
+
+        setVehicles(normalizedVehicles);
+        setServiceTypes(normalizedServiceTypes);
+        setAppointment((previous) => ({
+          ...previous,
+          vehicleId: previous.vehicleId || String(normalizedVehicles[0]?.id || ''),
+          serviceType: previous.serviceType || normalizedServiceTypes[0] || '',
+        }));
+      } catch (loadError) {
+        if (isMounted) {
+          setError(loadError.message || 'Unable to load request options.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadRequestOptions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const selectedVehicle = useMemo(
+    () => vehicles.find((vehicle) => String(vehicle.id) === appointment.vehicleId) || null,
+    [appointment.vehicleId, vehicles]
+  );
 
   const handleAppointmentSubmit = async (event) => {
     event.preventDefault();
@@ -53,13 +95,17 @@ function CustomerServiceRequests() {
 
     try {
       await bookAppointment({
-        customerId: Number(customerId),
         vehicleId: Number(appointment.vehicleId),
         appointmentDate: appointment.appointmentDate,
         serviceType: appointment.serviceType,
         description: appointment.description,
       });
-      setAppointment(initialAppointment);
+
+      setAppointment({
+        ...initialAppointment,
+        vehicleId: String(vehicles[0]?.id || ''),
+        serviceType: serviceTypes[0] || '',
+      });
       setMessage('Appointment booked successfully.');
     } catch (submitError) {
       setError(submitError.message || 'Unable to book appointment.');
@@ -73,7 +119,6 @@ function CustomerServiceRequests() {
 
     try {
       await requestUnavailablePart({
-        customerId: Number(customerId),
         partName: partRequest.partName,
         vehicleModel: partRequest.vehicleModel,
         description: partRequest.description,
@@ -92,7 +137,6 @@ function CustomerServiceRequests() {
 
     try {
       await reviewService({
-        customerId: Number(customerId),
         rating: Number(review.rating),
         comment: review.comment,
       });
@@ -106,50 +150,38 @@ function CustomerServiceRequests() {
   return (
     <section className="customer-self-service">
       <div className="page-header-card card">
-        <h2 className="section-title card-title">Customer Service Requests</h2>
+        <h2 className="section-title card-title">Customer Requests</h2>
         <p className="section-copy">
-          Book appointments, request unavailable parts, and review completed services.
+          {customerName}, book appointments, request unavailable parts, and review completed services.
         </p>
       </div>
 
-      <form className="feature-search-card card" onSubmit={handleCustomerLoad}>
-        <label className="form-label" htmlFor="customer-id">
-          Customer ID
-        </label>
-        <div className="feature-search-row">
-          <input
-            id="customer-id"
-            className="input-field"
-            type="number"
-            min="1"
-            value={customerId}
-            onChange={(event) => setCustomerId(event.target.value)}
-            required
-          />
-          <button className="button button-primary" type="submit">
-            Load
-          </button>
-        </div>
-      </form>
-
       {message && <div className="message-banner">{message}</div>}
       {error && <div className="message-banner error">{error}</div>}
+      {isLoading && <div className="message-banner">Loading your request options...</div>}
 
       <div className="customer-request-grid">
         <form className="table-card card" onSubmit={handleAppointmentSubmit}>
           <h3 className="staff-card-title card-title">Book Appointment</h3>
-          <label className="form-label" htmlFor="appointment-vehicle">Vehicle ID</label>
-          <input
+
+          <label className="form-label" htmlFor="appointment-vehicle">Vehicle</label>
+          <select
             id="appointment-vehicle"
             className="input-field"
-            type="number"
-            min="1"
             value={appointment.vehicleId}
             onChange={(event) =>
-              setAppointment((prev) => ({ ...prev, vehicleId: event.target.value }))
+              setAppointment((previous) => ({ ...previous, vehicleId: event.target.value }))
             }
             required
-          />
+            disabled={vehicles.length === 0}
+          >
+            <option value="">Select a vehicle</option>
+            {vehicles.map((vehicle) => (
+              <option key={vehicle.id} value={vehicle.id}>
+                {vehicle.make} {vehicle.model} ({vehicle.year}) {vehicle.licensePlate ? `- ${vehicle.licensePlate}` : ''}
+              </option>
+            ))}
+          </select>
 
           <label className="form-label" htmlFor="appointment-date">Date and Time</label>
           <input
@@ -158,21 +190,28 @@ function CustomerServiceRequests() {
             type="datetime-local"
             value={appointment.appointmentDate}
             onChange={(event) =>
-              setAppointment((prev) => ({ ...prev, appointmentDate: event.target.value }))
+              setAppointment((previous) => ({ ...previous, appointmentDate: event.target.value }))
             }
             required
           />
 
           <label className="form-label" htmlFor="service-type">Service Type</label>
-          <input
+          <select
             id="service-type"
             className="input-field"
             value={appointment.serviceType}
             onChange={(event) =>
-              setAppointment((prev) => ({ ...prev, serviceType: event.target.value }))
+              setAppointment((previous) => ({ ...previous, serviceType: event.target.value }))
             }
             required
-          />
+          >
+            <option value="">Select a service</option>
+            {serviceTypes.map((serviceType) => (
+              <option key={serviceType} value={serviceType}>
+                {serviceType}
+              </option>
+            ))}
+          </select>
 
           <label className="form-label" htmlFor="appointment-description">Description</label>
           <textarea
@@ -180,24 +219,25 @@ function CustomerServiceRequests() {
             className="input-field"
             value={appointment.description}
             onChange={(event) =>
-              setAppointment((prev) => ({ ...prev, description: event.target.value }))
+              setAppointment((previous) => ({ ...previous, description: event.target.value }))
             }
           />
 
-          <button className="button button-primary feature-submit" type="submit">
-            Book Appointment
+          <button className="button button-primary feature-submit" type="submit" disabled={vehicles.length === 0}>
+            {vehicles.length === 0 ? 'Add a vehicle first' : 'Book Appointment'}
           </button>
         </form>
 
         <form className="table-card card" onSubmit={handlePartRequestSubmit}>
           <h3 className="staff-card-title card-title">Request Unavailable Part</h3>
+
           <label className="form-label" htmlFor="part-name">Part Name</label>
           <input
             id="part-name"
             className="input-field"
             value={partRequest.partName}
             onChange={(event) =>
-              setPartRequest((prev) => ({ ...prev, partName: event.target.value }))
+              setPartRequest((previous) => ({ ...previous, partName: event.target.value }))
             }
             required
           />
@@ -208,8 +248,9 @@ function CustomerServiceRequests() {
             className="input-field"
             value={partRequest.vehicleModel}
             onChange={(event) =>
-              setPartRequest((prev) => ({ ...prev, vehicleModel: event.target.value }))
+              setPartRequest((previous) => ({ ...previous, vehicleModel: event.target.value }))
             }
+            placeholder={selectedVehicle ? `${selectedVehicle.make} ${selectedVehicle.model}` : 'Enter vehicle model'}
             required
           />
 
@@ -219,7 +260,7 @@ function CustomerServiceRequests() {
             className="input-field"
             value={partRequest.description}
             onChange={(event) =>
-              setPartRequest((prev) => ({ ...prev, description: event.target.value }))
+              setPartRequest((previous) => ({ ...previous, description: event.target.value }))
             }
           />
 
@@ -230,6 +271,7 @@ function CustomerServiceRequests() {
 
         <form className="table-card card" onSubmit={handleReviewSubmit}>
           <h3 className="staff-card-title card-title">Review Service</h3>
+
           <label className="form-label" htmlFor="rating">Rating</label>
           <input
             id="rating"
@@ -239,7 +281,7 @@ function CustomerServiceRequests() {
             max="5"
             value={review.rating}
             onChange={(event) =>
-              setReview((prev) => ({ ...prev, rating: event.target.value }))
+              setReview((previous) => ({ ...previous, rating: event.target.value }))
             }
             required
           />
@@ -250,7 +292,7 @@ function CustomerServiceRequests() {
             className="input-field"
             value={review.comment}
             onChange={(event) =>
-              setReview((prev) => ({ ...prev, comment: event.target.value }))
+              setReview((previous) => ({ ...previous, comment: event.target.value }))
             }
           />
 

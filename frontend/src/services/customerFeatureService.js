@@ -1,10 +1,14 @@
+import { getStoredToken } from '../utils/authSession';
+
 const API_BASE_URL =
   process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
 
 async function request(path, options = {}) {
+  const token = getStoredToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
     ...options,
@@ -43,6 +47,10 @@ export function getCustomerServiceHistory(customerId) {
 
 export function getServiceTypes() {
   return request('/api/customer-features/service-types');
+}
+
+export function getMyVehicles() {
+  return request('/api/customers/vehicles');
 }
 
 export function bookAppointment(payload) {

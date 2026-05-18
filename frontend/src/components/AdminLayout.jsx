@@ -1,14 +1,51 @@
-import React from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import { clearAuthSession, getStoredAuthUser } from '../utils/authSession';
 
 function getPageTitle(pathname) {
+  if (pathname === '/dashboard') {
+    return 'Customer Dashboard';
+  }
+
+  if (pathname === '/staff/dashboard') {
+    return 'Staff Dashboard';
+  }
+
+  if (pathname === '/staff/sales' || pathname === '/staff/invoices/create') {
+    return 'Sales';
+  }
+
+  if (pathname === '/staff/invoices') {
+    return 'Invoices';
+  }
+
+  if (pathname.startsWith('/staff/invoices/')) {
+    return 'Invoice Details';
+  }
+
+  if (pathname === '/staff/customers') {
+    return 'Customers';
+  }
+
+  if (pathname === '/staff/inventory') {
+    return 'Inventory';
+  }
+
+  if (pathname === '/staff/reports') {
+    return 'Reports';
+  }
+
+  if (pathname.includes('/admin/dashboard')) {
+    return 'Admin Dashboard';
+  }
+
   if (pathname.includes('staff-management')) {
     return 'Staff Management';
   }
 
-  if (pathname.includes('customer-services')) {
-    return 'Customer Services';
+  if (pathname.includes('/requests')) {
+    return 'Requests & Appointments';
   }
 
   if (pathname.includes('customers')) {
@@ -36,24 +73,46 @@ function getPageTitle(pathname) {
 
 function AdminLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPageTitle = getPageTitle(location.pathname);
+  const user = getStoredAuthUser();
+  const userLabel = user?.name || 'Guest user';
+
+  const handleLogout = () => {
+    clearAuthSession();
+    navigate('/login');
+  };
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="admin-shell">
-      <Sidebar />
+    <div className="app-shell">
+      <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-      <div className="content-column">
-        <header className="topbar">
-          <div>
-            <p className="topbar-label">GarageGo Administration</p>
-            <h1 className="topbar-title">{currentPageTitle}</h1>
+      <div className="app-main">
+        <header className="app-topbar">
+          <div className="topbar-left">
+            <button
+              className="mobile-toggle"
+              aria-label="Toggle navigation"
+              onClick={() => setSidebarOpen((s) => !s)}
+            >
+              ☰
+            </button>
+            <div>
+              <p className="app-topbar-label">GarageGo Garage Management System</p>
+              <h1 className="app-topbar-title">{currentPageTitle}</h1>
+            </div>
           </div>
-          <button className="topbar-action" type="button">
-            Admin User
-          </button>
+          <div className="app-topbar-actions">
+            <span className="app-topbar-user">Signed in as {userLabel}</span>
+            <button className="app-topbar-action" type="button" onClick={handleLogout}>
+              Sign out
+            </button>
+          </div>
         </header>
 
-        <main className="page-content">
+        <main className="app-content">
           <Outlet />
         </main>
       </div>

@@ -1,6 +1,7 @@
 using Backend.Data;
 using Backend.Models;
 using Backend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,6 +9,7 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Admin,Staff")]
     public class VendorsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -65,8 +67,8 @@ namespace Backend.Controllers
             {
                 await _emailService.SendEmailAsync(
                     vendor.Email,
-                    "Vendor Registration Successful",
-                    $"Hello {vendor.VendorName}, you have been successfully registered in GarageGo.");
+                    "GarageGo Vendor Record Created",
+                    $"Hello {vendor.VendorName}, your supplier profile has been added to GarageGo.");
             }
             catch (Exception ex)
             {
@@ -100,6 +102,7 @@ namespace Backend.Controllers
             existingVendor.Phone = vendor.Phone;
             existingVendor.Email = vendor.Email;
             existingVendor.Address = vendor.Address;
+            existingVendor.Status = vendor.Status;
 
             await _context.SaveChangesAsync();
 

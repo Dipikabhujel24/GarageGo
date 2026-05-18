@@ -125,7 +125,7 @@
 }
 
 /* Dashboard shell */
-.customer-portal-shell {
+.customer-dashboard-shell {
   min-height: calc(100vh - 32px);
   width: min(1440px, 100%);
   margin: 0 auto;
@@ -1009,7 +1009,7 @@
 }
 
 @media (max-width: 1180px) {
-  .customer-portal-shell {
+  .customer-dashboard-shell {
     grid-template-columns: 1fr;
   }
 

@@ -76,6 +76,17 @@
   padding-bottom: 48px;
 }
 
+.sales-field--wide {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.sales-field-hint {
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
 .sales-page__row .field input {
   width: 120px;          /* control size */
   min-height: 44px;      /* reduce height */
@@ -141,6 +152,10 @@
   flex-wrap: wrap;
 }
 
+.sales-page__row--customer {
+  justify-content: flex-start;
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -166,6 +181,12 @@
   line-height: 1.2;
   box-shadow: 0 1px 0 rgba(15, 36, 84, 0.02);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.sales-card select:disabled,
+.sales-card input:disabled {
+  background: #f8fafc;
+  color: #64748b;
 }
 
 .sales-card input::placeholder {
@@ -295,6 +316,88 @@
   border-radius: 16px;
   padding: 24px;
   color: #e2e8f0;
+}
+
+.invoice-card .invoice-header {
+  padding: 28px 24px 12px;
+  background: linear-gradient(160deg, #0f172a 0%, #0f2454 52%, #0ea5e9 100%);
+  color: #ffffff;
+}
+
+.invoice-card .invoice-header h2,
+.invoice-card .invoice-header p {
+  margin: 0;
+}
+
+.invoice-card .invoice-header p {
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.invoice-card .invoice-details,
+.invoice-card .invoice-items,
+.invoice-card .invoice-total,
+.invoice-card .invoice-email,
+.invoice-card .invoice-actions {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.invoice-card .invoice-details {
+  display: grid;
+  gap: 10px;
+  padding-top: 24px;
+}
+
+.invoice-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #334155;
+}
+
+.invoice-row--total {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.invoice-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.invoice-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f8fbff;
+  border: 1px solid rgba(191, 219, 254, 0.7);
+  color: #0f172a;
+}
+
+.invoice-card .invoice-email {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: end;
+  padding-bottom: 24px;
+}
+
+.invoice-card .invoice-actions {
+  padding-bottom: 24px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.invoice-card .field {
+  width: 100%;
 }
 
 .invoice-summary__title {

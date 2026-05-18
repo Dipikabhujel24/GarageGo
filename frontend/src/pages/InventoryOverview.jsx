@@ -68,8 +68,8 @@ function InventoryOverview() {
       <div className="page-header-card card">
         <h2 className="section-title card-title">Inventory Overview</h2>
         <p className="section-copy">
-          Review supplier coverage, watch low stock items, and jump into Nisha&apos;s
-          vendor and parts workflows from one place.
+          Review supplier coverage, watch low stock items, and jump into the vendor
+          and parts workflows from one place.
         </p>
       </div>
 
@@ -134,7 +134,7 @@ function InventoryOverview() {
                   <h3 className="staff-card-title card-title">Inventory Actions</h3>
                   <p className="section-copy">
                     Open the detailed vendor and parts screens without leaving the
-                    admin workspace.
+                    GarageGo workspace.
                   </p>
                 </div>
               </div>

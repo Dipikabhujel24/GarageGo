@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
+import { clearAuthSession, getStoredToken } from '../../utils/authSession';
 import './CustomerHistory.css';
 
 function CustomerHistory() {
@@ -15,7 +16,7 @@ function CustomerHistory() {
 
   useEffect(() => {
     const loadHistory = async () => {
-      const token = localStorage.getItem('token');
+      const token = getStoredToken();
 
       if (!token) {
         setError('Please sign in to view your service and purchase history.');
@@ -36,8 +37,7 @@ function CustomerHistory() {
         const data = await readApiResponse(response);
 
         if (response.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('customer');
+          clearAuthSession();
           navigate('/login');
           return;
         }
@@ -174,7 +174,7 @@ function CustomerHistory() {
       <div className="customer-history-shell">
         <section className="customer-history-hero">
           <div className="customer-history-hero-copy">
-            <p className="history-eyebrow">GarageGo Customer Portal</p>
+            <p className="history-eyebrow">GarageGo Customer Account</p>
             <h1>Service &amp; Purchase History</h1>
             <p className="history-subtitle">
               View your past services, purchases, invoices, and payment records in one place.

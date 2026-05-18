@@ -15,7 +15,15 @@ namespace Backend.Services
             _configuration = configuration;
         }
 
-        public (string token, DateTime expiresAtUtc) GenerateCustomerToken(Customer customer)
+        public (string token, DateTime expiresAtUtc) GenerateUserToken(AppUser user)
+        {
+            return GenerateToken(user.Id, user.Email, user.Role);
+        }
+
+        private (string token, DateTime expiresAtUtc) GenerateToken(
+            int id,
+            string email,
+            string role)
         {
             var jwtSection = _configuration.GetSection("Jwt");
             var key = jwtSection["Key"] ?? "garagego_super_secret_key_123456789";
@@ -26,10 +34,9 @@ namespace Backend.Services
 
             var claims = new List<Claim>
             {
-                new(ClaimTypes.NameIdentifier, customer.Id.ToString()),
-                new(ClaimTypes.Name, customer.Name),
-                new(ClaimTypes.Email, customer.Email),
-                new(ClaimTypes.Role, "Customer")
+                new(ClaimTypes.NameIdentifier, id.ToString()),
+                new(ClaimTypes.Email, email),
+                new(ClaimTypes.Role, role)
             };
 
             var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));

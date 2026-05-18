@@ -10,7 +10,7 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/customers/service-history")]
-    [Authorize]
+    [Authorize(Roles = "Customer")]
     public class ServiceHistoryController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -23,15 +23,25 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetServiceHistory()
         {
-            if (!TryGetLoggedInCustomerId(out var customerId))
+            if (!TryGetLoggedInUserId(out var userId))
             {
                 return Unauthorized(new { message = "Invalid or missing token." });
+            }
+
+            var customerId = await _context.CustomerProfiles
+                .Where(profile => profile.UserId == userId)
+                .Select(profile => (int?)profile.Id)
+                .FirstOrDefaultAsync();
+
+            if (!customerId.HasValue)
+            {
+                return NotFound(new { message = "Customer not found." });
             }
 
             var records = await _context.ServiceHistories
                 .AsNoTracking()
                 .Include(s => s.Vehicle)
-                .Where(s => s.CustomerId == customerId)
+                .Where(s => s.CustomerId == customerId.Value)
                 .OrderByDescending(s => s.ServiceDate)
                 .ToListAsync();
 
@@ -43,13 +53,23 @@ namespace Backend.Controllers
         [HttpPost("seed-test-data")]
         public async Task<IActionResult> SeedTestData()
         {
-            if (!TryGetLoggedInCustomerId(out var customerId))
+            if (!TryGetLoggedInUserId(out var userId))
             {
                 return Unauthorized(new { message = "Invalid or missing token." });
             }
 
+            var customerId = await _context.CustomerProfiles
+                .Where(profile => profile.UserId == userId)
+                .Select(profile => (int?)profile.Id)
+                .FirstOrDefaultAsync();
+
+            if (!customerId.HasValue)
+            {
+                return NotFound(new { message = "Customer not found." });
+            }
+
             var vehicleId = await _context.CustomerVehicles
-                .Where(v => v.CustomerId == customerId)
+                .Where(v => v.CustomerId == customerId.Value)
                 .Select(v => (int?)v.Id)
                 .FirstOrDefaultAsync();
 
@@ -58,7 +78,7 @@ namespace Backend.Controllers
             {
                 new()
                 {
-                    CustomerId = customerId,
+                    CustomerId = customerId.Value,
                     VehicleId = vehicleId,
                     HistoryType = "Service",
                     Title = "Oil Change and Inspection",
@@ -70,7 +90,7 @@ namespace Backend.Controllers
                 },
                 new()
                 {
-                    CustomerId = customerId,
+                    CustomerId = customerId.Value,
                     VehicleId = vehicleId,
                     HistoryType = "Service",
                     Title = "Tyre Rotation",
@@ -82,7 +102,7 @@ namespace Backend.Controllers
                 },
                 new()
                 {
-                    CustomerId = customerId,
+                    CustomerId = customerId.Value,
                     VehicleId = null,
                     HistoryType = "Purchase",
                     Title = "Brake Pads Purchase",
@@ -128,12 +148,12 @@ namespace Backend.Controllers
             };
         }
 
-        private bool TryGetLoggedInCustomerId(out int customerId)
+        private bool TryGetLoggedInUserId(out int userId)
         {
-            var customerIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-            customerId = 0;
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            userId = 0;
 
-            return customerIdClaim != null && int.TryParse(customerIdClaim.Value, out customerId);
+            return userIdClaim != null && int.TryParse(userIdClaim.Value, out userId);
         }
     }
 }

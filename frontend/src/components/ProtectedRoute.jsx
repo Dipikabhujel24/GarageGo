@@ -1,0 +1,36 @@
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { getStoredAuthUser } from '../utils/authSession';
+
+/**
+ * ProtectedRoute component that restricts access based on user role
+ * If user is not logged in or role not allowed, redirects to login or access denied
+ */
+const ProtectedRoute = ({ 
+  children, 
+  allowedRoles = [], 
+  redirectTo = '/login' 
+}) => {
+  const user = getStoredAuthUser();
+  const userRole = user?.role;
+
+  // Not logged in
+  if (!user || !userRole) {
+    return <Navigate to={redirectTo} replace />;
+  }
+
+  // Logged in but role not allowed
+  if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+    // Redirect to their own role's dashboard
+    const dashboardMap = {
+      'Admin': '/admin/dashboard',
+      'Staff': '/staff/dashboard',
+      'Customer': '/dashboard',
+    };
+    return <Navigate to={dashboardMap[userRole] || '/dashboard'} replace />;
+  }
+
+  return children;
+};
+
+export default ProtectedRoute;

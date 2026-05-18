@@ -9,12 +9,13 @@ namespace Backend.Data
         {
         }
 
-        public DbSet<Customer> Customers { get; set; } = null!;
+        public DbSet<AppUser> Users { get; set; } = null!;
+        public DbSet<CustomerProfile> CustomerProfiles { get; set; } = null!;
         public DbSet<CustomerVehicle> CustomerVehicles { get; set; } = null!;
         public DbSet<ServiceHistory> ServiceHistories { get; set; } = null!;
         public DbSet<Sale> Sales { get; set; } = null!;
         public DbSet<SaleItem> SaleItems { get; set; } = null!;
-        public DbSet<Staff> Staff { get; set; } = null!;
+        public DbSet<StaffProfile> StaffProfiles { get; set; } = null!;
         public DbSet<Vendor> Vendors { get; set; } = null!;
         public DbSet<Part> Parts { get; set; } = null!;
         public DbSet<Appointment> Appointments { get; set; } = null!;
@@ -25,17 +26,37 @@ namespace Backend.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<Customer>()
-                .HasIndex(customer => customer.Email)
+            modelBuilder.Entity<AppUser>()
+                .HasIndex(user => user.Email)
                 .IsUnique();
 
-            modelBuilder.Entity<Customer>()
+            modelBuilder.Entity<CustomerProfile>()
+                .HasIndex(customer => customer.LegacyEmail)
+                .IsUnique();
+
+            modelBuilder.Entity<StaffProfile>()
+                .HasIndex(staff => staff.LegacyEmail)
+                .IsUnique();
+
+            modelBuilder.Entity<CustomerProfile>()
+                .HasOne(customer => customer.User)
+                .WithOne(user => user.CustomerProfile)
+                .HasForeignKey<CustomerProfile>(customer => customer.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StaffProfile>()
+                .HasOne(staff => staff.User)
+                .WithOne(user => user.StaffProfile)
+                .HasForeignKey<StaffProfile>(staff => staff.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<CustomerProfile>()
                 .HasMany(customer => customer.Vehicles)
                 .WithOne(vehicle => vehicle.Customer)
                 .HasForeignKey(vehicle => vehicle.CustomerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Customer>()
+            modelBuilder.Entity<CustomerProfile>()
                 .HasMany(customer => customer.ServiceHistories)
                 .WithOne(history => history.Customer)
                 .HasForeignKey(history => history.CustomerId)
@@ -53,19 +74,19 @@ namespace Backend.Data
                 .HasForeignKey(appointment => appointment.VehicleId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Customer>()
+            modelBuilder.Entity<CustomerProfile>()
                 .HasMany(customer => customer.Appointments)
                 .WithOne()
                 .HasForeignKey(appointment => appointment.CustomerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Customer>()
+            modelBuilder.Entity<CustomerProfile>()
                 .HasMany(customer => customer.UnavailablePartRequests)
                 .WithOne()
                 .HasForeignKey(request => request.CustomerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Customer>()
+            modelBuilder.Entity<CustomerProfile>()
                 .HasMany(customer => customer.ServiceReviews)
                 .WithOne()
                 .HasForeignKey(review => review.CustomerId)
@@ -81,15 +102,15 @@ namespace Backend.Data
                 entity.Property(history => history.Amount).HasColumnType("numeric(18,2)");
             });
 
-            modelBuilder.Entity<Staff>()
-                .HasIndex(staff => staff.Email)
-                .IsUnique();
-
             modelBuilder.Entity<Vendor>()
                 .HasMany(vendor => vendor.Parts)
                 .WithOne(part => part.Vendor)
                 .HasForeignKey(part => part.VendorId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Vendor>()
+                .Property(vendor => vendor.Status)
+                .HasMaxLength(30);
 
             modelBuilder.Entity<Part>()
                 .Property(part => part.Price)

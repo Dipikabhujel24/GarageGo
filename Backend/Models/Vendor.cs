@@ -23,6 +23,10 @@ namespace Backend.Models
         [Required]
         public string Address { get; set; } = string.Empty;
 
+        [Required]
+        [MaxLength(30)]
+        public string Status { get; set; } = "Active";
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         [JsonIgnore]

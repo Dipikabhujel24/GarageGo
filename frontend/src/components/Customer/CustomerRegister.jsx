@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE, apiUrl, getApiErrorMessage, logApiResponse, readApiResponse } from '../../config/api';
+import { getDashboardPathForRole } from '../../config/roleBasedNav';
+import { storeAuthSession } from '../../utils/authSession';
 import './CustomerRegister.css'; // Optional: for basic styling if needed
 
 const CustomerRegister = () => {
@@ -40,7 +42,7 @@ const CustomerRegister = () => {
                 },
                 body: JSON.stringify({
                     ...formData,
-                    vehicleYear: parseInt(formData.vehicleYear)
+                    vehicleYear: parseInt(formData.vehicleYear, 10) || null
                 }),
             });
 
@@ -49,12 +51,7 @@ const CustomerRegister = () => {
 
             if (response.ok) {
                 setMessage(data.message || 'Registration successful!');
-                if (data.token) {
-                    localStorage.setItem('token', data.token);
-                }
-                if (data.customer) {
-                    localStorage.setItem('customer', JSON.stringify(data.customer));
-                }
+                storeAuthSession({ token: data.token, user: data.user });
                 // Reset form
                 setFormData({
                     name: '',
@@ -68,7 +65,7 @@ const CustomerRegister = () => {
                     licensePlate: ''
                 });
 
-                navigate('/dashboard');
+                navigate(getDashboardPathForRole(data.user?.role));
             } else {
                 setError(getApiErrorMessage(data, 'Registration failed. Please check the inputs.'));
                 if(data.errors) {

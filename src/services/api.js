@@ -2,6 +2,30 @@ import axios from "axios";
 
 const API = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
+const getAuthHeaders = () => {
+  const tokenFromStorage = (() => {
+    try {
+      const storedSession = localStorage.getItem("authSession");
+      if (storedSession) {
+        const parsedSession = JSON.parse(storedSession);
+        if (parsedSession?.token) {
+          return parsedSession.token;
+        }
+      }
+    } catch {
+      // Ignore malformed session data and fall back to loose token keys.
+    }
+
+    return localStorage.getItem("token") || localStorage.getItem("authToken") || "";
+  })();
+
+  return tokenFromStorage ? { Authorization: `Bearer ${tokenFromStorage}` } : {};
+};
+
+const requestConfig = () => ({
+  headers: getAuthHeaders()
+});
+
 export const extractApiError = (error) => {
   if (error?.response?.data) {
     if (typeof error.response.data === "string") {
@@ -24,8 +48,15 @@ export const extractApiError = (error) => {
   return error?.message || "Unknown error";
 };
 
+export const getSalesCatalog = () => {
+  return axios.get(`${API}/sales/catalog`, requestConfig()).then((response) => {
+    console.log("[API] GET /sales/catalog", response.data);
+    return response;
+  });
+};
+
 export const createSale = (data) => {
-  return axios.post(`${API}/sales`, data).then((response) => {
+  return axios.post(`${API}/sales`, data, requestConfig()).then((response) => {
     console.log("[API] POST /sales", response.data);
     return response;
   });
@@ -38,8 +69,8 @@ export const getSales = () => {
   });
 };
 
-export const sendEmail = (email) => {
-  return axios.post(`${API}/sales/send-email?email=${email}`).then((response) => {
+export const sendEmail = (email, invoice) => {
+  return axios.post(`${API}/sales/send-email`, { email, invoice }, requestConfig()).then((response) => {
     console.log("[API] POST /sales/send-email", response.data);
     return response;
   });

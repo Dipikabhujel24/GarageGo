@@ -8,7 +8,7 @@ namespace Backend.Models
 
         [Required]
         public int CustomerId { get; set; }
-        public Customer Customer { get; set; } = null!;
+        public CustomerProfile Customer { get; set; } = null!;
 
         public int? VehicleId { get; set; }
         public CustomerVehicle? Vehicle { get; set; }

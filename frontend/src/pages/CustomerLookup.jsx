@@ -166,11 +166,12 @@ function CustomerLookup() {
                   <div className="feature-list">
                     {selectedCustomer.serviceHistory.map((history) => (
                       <article className="feature-list-item" key={history.id}>
-                        <strong>{history.serviceType}</strong>
-                        <p>{new Date(history.serviceDate).toLocaleDateString()} | {history.vehicleNumber}</p>
+                        <strong>{history.historyType || history.title}</strong>
+                        <p>{new Date(history.serviceDate).toLocaleDateString()} | {history.vehicleNumber || history.vehicle || '-'}</p>
                         <p>{history.description || '-'}</p>
-                        <p>Mechanic: {history.mechanicName || '-'} | Cost: {Number(history.totalCost).toFixed(2)}</p>
-                        <p>Status: {history.status}</p>
+                        <p>Title: {history.title || '-'}</p>
+                        <p>Amount: {Number(history.amount || 0).toFixed(2)} | Payment: {history.paymentStatus || '-'}</p>
+                        <p>Invoice: {history.invoiceNumber || '-'}</p>
                       </article>
                     ))}
                   </div>

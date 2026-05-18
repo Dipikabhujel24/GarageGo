@@ -11,6 +11,17 @@ const reportsApi = axios.create({
   },
 });
 
+reportsApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
 export function extractReportApiError(error, fallbackMessage) {
   if (error?.code === 'ECONNABORTED') {
     return 'The request timed out. Please verify the backend server is running.';
