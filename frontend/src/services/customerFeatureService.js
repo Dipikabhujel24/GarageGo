@@ -45,6 +45,39 @@ export function getCustomerServiceHistory(customerId) {
   return request(`/api/customer-features/${customerId}/service-history`);
 }
 
+export function getLoggedInCustomerServiceHistory() {
+  return request('/api/customers/service-history');
+}
+
+export async function downloadCustomerHistoryPdf(historyId) {
+  const token = getStoredToken();
+  const response = await fetch(`${API_BASE_URL}/api/customers/service-history/${historyId}/pdf`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  const blob = await response.blob();
+
+  if (!response.ok) {
+    const errorText = await blob.text();
+    let message = 'Failed to download PDF.';
+
+    try {
+      const data = errorText ? JSON.parse(errorText) : null;
+      message = data?.message || message;
+    } catch {
+      if (errorText) {
+        message = errorText;
+      }
+    }
+
+    throw new Error(message);
+  }
+
+  return blob;
+}
+
 export function getServiceTypes() {
   return request('/api/customer-features/service-types');
 }

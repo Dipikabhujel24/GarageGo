@@ -286,6 +286,33 @@
   white-space: nowrap;
 }
 
+.history-pdf-button {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #0f4f7f, #1f78ea);
+  color: #ffffff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.history-pdf-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(31, 120, 234, 0.22);
+}
+
+.history-pdf-button:disabled {
+  opacity: 0.72;
+  cursor: progress;
+}
+
+.history-pdf-button--mobile {
+  width: 100%;
+  margin-top: 4px;
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
