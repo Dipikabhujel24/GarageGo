@@ -21,6 +21,7 @@ import StaffInvoices from "./pages/StaffInvoices";
 import StaffInvoiceDetails from "./pages/StaffInvoiceDetails";
 import StaffSalesPage from "./pages/StaffSalesPage";
 import Reports from "./pages/Reports";
+import Notifications from "./pages/Notifications";
 import StaffManagement from "./pages/StaffManagement";
 import VendorManagement from "./pages/VendorManagement";
 
@@ -186,6 +187,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Admin']}>
                 <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="admin/notifications" 
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <Notifications />
               </ProtectedRoute>
             } 
           />

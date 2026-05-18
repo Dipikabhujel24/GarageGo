@@ -37,6 +37,7 @@ export const navigationConfig = [
     title: 'Administration',
     items: [
       { label: 'Inventory Overview', path: '/admin/inventory', allowedRoles: ['Admin'] },
+      { label: 'Notifications', path: '/admin/notifications', allowedRoles: ['Admin'] },
       { label: 'Vendors', path: '/admin/vendors', allowedRoles: ['Admin'] },
       { label: 'Parts', path: '/admin/parts', allowedRoles: ['Admin'] },
       { label: 'Staff Management', path: '/admin/staff-management', allowedRoles: ['Admin'] },

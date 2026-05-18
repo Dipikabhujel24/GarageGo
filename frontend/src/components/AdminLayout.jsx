@@ -40,6 +40,10 @@ function getPageTitle(pathname) {
     return 'Admin Dashboard';
   }
 
+  if (pathname.includes('/admin/notifications')) {
+    return 'Notifications';
+  }
+
   if (pathname.includes('staff-management')) {
     return 'Staff Management';
   }

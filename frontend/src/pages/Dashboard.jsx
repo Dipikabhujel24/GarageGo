@@ -12,6 +12,7 @@ import {
   extractReportApiError,
   getMonthlyReports,
 } from '../services/reportService';
+import { getNotificationsSummary } from '../services/api';
 
 // Convert API responses (array or single object) into a consistent chart row format
 function normalizeReportPayload(payload) {
@@ -46,6 +47,7 @@ function Dashboard() {
   const [chartData, setChartData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [notifications, setNotifications] = useState(null);
 
   // Load monthly reports from the API on mount.
   // Uses a mounted flag to avoid state updates after unmount.
@@ -55,6 +57,19 @@ function Dashboard() {
     const loadDashboardData = async () => {
       setIsLoading(true);
       setErrorMessage('');
+
+      try {
+        const notif = await getNotificationsSummary();
+        if (!isMounted) return;
+        if (notif?.status === 401 || notif?.status === 403) {
+          setNotifications(null);
+        } else {
+          setNotifications(notif.data || null);
+        }
+      } catch (e) {
+        // ignore notification fetch errors
+        if (isMounted) setNotifications(null);
+      }
 
       try {
         const monthlyReports = await getMonthlyReports();
@@ -123,6 +138,11 @@ function Dashboard() {
         <p className="status-text">Loading...</p>
       ) : (
         <>
+          {notifications && notifications.lowStockCount > 0 && (
+            <div className="message-banner warning">
+              {`Low stock: ${notifications.lowStockCount} part(s) below threshold.`}
+            </div>
+          )}
           <div className="stats-grid">
             {derivedSummaryCards.map((summaryCard) => (
               <article key={summaryCard.label} className="stat-card card">
