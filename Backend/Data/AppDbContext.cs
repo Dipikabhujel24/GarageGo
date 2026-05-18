@@ -63,6 +63,10 @@ namespace Backend.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<CustomerVehicle>()
+                .HasIndex(vehicle => vehicle.LicensePlate)
+                .IsUnique();
+
+            modelBuilder.Entity<CustomerVehicle>()
                 .HasMany(vehicle => vehicle.ServiceHistories)
                 .WithOne(history => history.Vehicle)
                 .HasForeignKey(history => history.VehicleId)
