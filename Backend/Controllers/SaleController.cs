@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
+using Microsoft.Extensions.Configuration;
+using System;
 
 namespace Backend.Controllers
 {
@@ -16,11 +18,13 @@ namespace Backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly EmailService _emailService;
+        private readonly IConfiguration _configuration;
 
-        public SalesController(AppDbContext context, EmailService emailService)
+        public SalesController(AppDbContext context, EmailService emailService, IConfiguration configuration)
         {
             _context = context;
             _emailService = emailService;
+            _configuration = configuration;
         }
 
         [HttpGet("catalog")]
@@ -134,6 +138,52 @@ namespace Backend.Controllers
             _context.Sales.Add(sale);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            // Award loyalty points to customer and notify if threshold reached
+            try
+            {
+                var customer = await _context.CustomerProfiles.FindAsync(dto.CustomerId);
+                if (customer != null)
+                {
+                    // Points policy: 1 point per 100 units of currency (configurable)
+                    var perAmount = 100m;
+                    if (decimal.TryParse(_configuration["Loyalty:PointsPerAmount"], out var cfgPerAmount))
+                    {
+                        perAmount = cfgPerAmount;
+                    }
+
+                    var pointsEarned = (int)Math.Floor(sale.TotalAmount / perAmount);
+                    if (pointsEarned > 0)
+                    {
+                        var previous = customer.LoyaltyPoints;
+                        customer.LoyaltyPoints += pointsEarned;
+                        await _context.SaveChangesAsync();
+
+                        var threshold = 100; // default threshold
+                        if (int.TryParse(_configuration["Loyalty:NotifyThreshold"], out var cfgThreshold))
+                        {
+                            threshold = cfgThreshold;
+                        }
+
+                        if (previous < threshold && customer.LoyaltyPoints >= threshold && customer.LastLoyaltyNotifiedAt == null)
+                        {
+                            var email = customer.LegacyEmail;
+                            if (!string.IsNullOrWhiteSpace(email))
+                            {
+                                var subject = "Congratulations — Loyalty Reward Unlocked";
+                                var body = $"Dear {customer.Name},<br/><br/>You've earned {customer.LoyaltyPoints} loyalty points and reached a reward milestone! Thank you for being a valued customer.<br/><br/>— GarageGo";
+                                await _emailService.SendEmailAsync(email.Trim(), subject, body);
+                                customer.LastLoyaltyNotifiedAt = DateTime.UtcNow;
+                                await _context.SaveChangesAsync();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Do not fail the sale if loyalty email fails; log could be added.
+            }
 
             return Ok(BuildInvoice(sale, partsById));
         }
