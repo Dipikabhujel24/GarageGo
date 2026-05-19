@@ -2,10 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createSale, extractApiError, getSalesCatalog } from '../services/api';
 import { saveStoredInvoice } from '../utils/invoiceStorage';
+import { getStoredAuthUser } from '../utils/authSession';
 import './StaffSalesPage.css';
 
 function StaffSalesPage() {
   const navigate = useNavigate();
+  const userRole = getStoredAuthUser()?.role;
+  const canAccessSales = userRole === 'Staff' || userRole === 'Admin';
   const [catalog, setCatalog] = useState({ parts: [], customers: [] });
   const [customerId, setCustomerId] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -17,6 +20,15 @@ function StaffSalesPage() {
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
 
   useEffect(() => {
+    if (!canAccessSales) {
+      setIsLoadingCatalog(false);
+      setFeedback({
+        type: 'error',
+        message: 'Access denied. Sales invoices are available only to staff and admins.',
+      });
+      return undefined;
+    }
+
     let mounted = true;
 
     const loadCatalog = async () => {
@@ -49,7 +61,7 @@ function StaffSalesPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [canAccessSales]);
 
   const selectedCustomer = useMemo(
     () => catalog.customers.find((customer) => String(customer.id) === String(customerId)),
@@ -166,6 +178,15 @@ function StaffSalesPage() {
     <section className="sales-page-shell">
       {feedback.message ? <div className={`sales-banner sales-banner--${feedback.type || 'info'}`}>{feedback.message}</div> : null}
 
+      {!canAccessSales ? (
+        <section className="sales-card">
+          <div className="sales-card__intro sales-card__intro--single">
+            <span className="sales-card__badge">Access Denied</span>
+            <h2>Sales access is restricted</h2>
+            <p>Sign in with a staff or admin account to create sales invoices.</p>
+          </div>
+        </section>
+      ) : (
       <section className="sales-card">
         <div className="sales-card__intro sales-card__intro--single">
           <span className="sales-card__badge">Staff Sales</span>
@@ -297,6 +318,7 @@ function StaffSalesPage() {
           </div>
         </div>
       </section>
+      )}
     </section>
   );
 }

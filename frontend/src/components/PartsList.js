@@ -15,7 +15,7 @@ function PartsList({ parts, onEdit, onDelete }) {
             <th>Part</th>
             <th>Category</th>
             <th>Vendor</th>
-            <th>Price</th>
+            <th>Price (Rs)</th>
             <th>Quantity</th>
             <th>Description</th>
             <th>Actions</th>

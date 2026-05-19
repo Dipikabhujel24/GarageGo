@@ -1,17 +1,17 @@
+import { API_BASE } from '../config/api';
 import { getStoredToken } from '../utils/authSession';
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
+const API_BASE_URL = API_BASE;
 
 async function request(path, options = {}) {
-  const token = getStoredToken();
+  const token = getStoredToken() || localStorage.getItem('token') || '';
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
-    ...options,
   });
 
   const text = await response.text();
