@@ -11,6 +11,23 @@ namespace Backend.Controllers
     [Route("api/staff")]
     public class StaffController : ControllerBase
     {
+        private static readonly List<string> StaffAccountRoles = new()
+        {
+            "Admin",
+            "Staff",
+            "Sales Staff",
+            "Inventory Staff",
+            "Store Keeper",
+            "Cashier",
+            "Service Advisor",
+            "Mechanic / Technician",
+            "Purchase Officer",
+            "Accountant",
+            "Customer Support",
+            "Branch Manager",
+            "Receptionist",
+        };
+
         private readonly AppDbContext _context;
 
         public StaffController(AppDbContext context)
@@ -25,7 +42,7 @@ namespace Backend.Controllers
             var staffMembers = await _context.StaffProfiles
                 .AsNoTracking()
                 .Include(staff => staff.User)
-                .Where(staff => staff.User != null && staff.User.Role == "Staff")
+                .Where(staff => staff.User != null && StaffAccountRoles.Contains(staff.User.Role))
                 .OrderBy(staff => staff.Name)
                 .Select(staff => MapStaffResponse(staff))
                 .ToListAsync();
@@ -40,7 +57,7 @@ namespace Backend.Controllers
             var staffMember = await _context.StaffProfiles
                 .AsNoTracking()
                 .Include(staff => staff.User)
-                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && staff.User.Role == "Staff");
+                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && StaffAccountRoles.Contains(staff.User.Role));
 
             if (staffMember is null)
             {
@@ -72,13 +89,19 @@ namespace Backend.Controllers
                 return Conflict(new { message = "An account with this email already exists." });
             }
 
+            var role = NormalizeStaffRole(dto.Role);
+            if (role is null)
+            {
+                return BadRequest(new { message = "Select a valid garage staff role." });
+            }
+
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
             var user = new AppUser
             {
                 Email = email,
                 PasswordHash = passwordHash,
-                Role = "Staff",
-                Status = "Active"
+                Role = role,
+                Status = NormalizeStatus(dto.Status)
             };
 
             var profile = new StaffProfile
@@ -87,7 +110,7 @@ namespace Backend.Controllers
                 Name = dto.Name.Trim(),
                 LegacyEmail = email,
                 LegacyPasswordHash = passwordHash,
-                LegacyRole = "Staff"
+                LegacyRole = user.Role
             };
 
             _context.StaffProfiles.Add(profile);
@@ -102,7 +125,7 @@ namespace Backend.Controllers
         {
             var entity = await _context.StaffProfiles
                 .Include(staff => staff.User)
-                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && staff.User.Role == "Staff");
+                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && StaffAccountRoles.Contains(staff.User.Role));
 
             if (entity is null || entity.User is null)
             {
@@ -122,10 +145,26 @@ namespace Backend.Controllers
                 return Conflict(new { message = "Another account already uses this email." });
             }
 
+            var nextRole = NormalizeStaffRole(dto.Role);
+            var nextStatus = NormalizeStatus(dto.Status);
+            if (nextRole is null)
+            {
+                return BadRequest(new { message = "Select a valid garage staff role." });
+            }
+
+            if (entity.User.Role == "Admin"
+                && (nextRole != "Admin" || nextStatus == "Disabled")
+                && await CountActiveAdminsAsync(entity.User.Id) == 0)
+            {
+                return BadRequest(new { message = "At least one active admin account must remain." });
+            }
+
             entity.Name = dto.Name.Trim();
             entity.User.Email = email;
+            entity.User.Role = nextRole;
+            entity.User.Status = nextStatus;
             entity.LegacyEmail = email;
-            entity.LegacyRole = "Staff";
+            entity.LegacyRole = entity.User.Role;
 
             if (!string.IsNullOrWhiteSpace(dto.Password))
             {
@@ -145,11 +184,16 @@ namespace Backend.Controllers
         {
             var entity = await _context.StaffProfiles
                 .Include(staff => staff.User)
-                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && staff.User.Role == "Staff");
+                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && StaffAccountRoles.Contains(staff.User.Role));
 
             if (entity is null || entity.User is null)
             {
                 return NotFound(new { message = "Staff member not found." });
+            }
+
+            if (entity.User.Role == "Admin" && await CountActiveAdminsAsync(entity.User.Id) == 0)
+            {
+                return BadRequest(new { message = "At least one active admin account must remain." });
             }
 
             _context.Users.Remove(entity.User);
@@ -158,7 +202,57 @@ namespace Backend.Controllers
             return NoContent();
         }
 
-        [Authorize(Roles = "Staff")]
+        [Authorize(Roles = "Admin")]
+        [HttpPatch("{id:int}/status")]
+        public async Task<ActionResult<object>> UpdateStaffStatus(int id, [FromBody] UpsertStaffDto dto)
+        {
+            var entity = await _context.StaffProfiles
+                .Include(staff => staff.User)
+                .FirstOrDefaultAsync(staff => staff.Id == id && staff.User != null && StaffAccountRoles.Contains(staff.User.Role));
+
+            if (entity is null || entity.User is null)
+            {
+                return NotFound(new { message = "Staff member not found." });
+            }
+
+            var nextStatus = NormalizeStatus(dto.Status);
+            if (entity.User.Role == "Admin" && nextStatus == "Disabled" && await CountActiveAdminsAsync(entity.User.Id) == 0)
+            {
+                return BadRequest(new { message = "At least one active admin account must remain." });
+            }
+
+            entity.User.Status = nextStatus;
+            await _context.SaveChangesAsync();
+
+            return Ok(MapStaffResponse(entity));
+        }
+
+        [Authorize(Roles = "Admin")]
+        [HttpGet("activity")]
+        public async Task<ActionResult<IEnumerable<object>>> GetStaffActivity()
+        {
+            var activities = await _context.StaffProfiles
+                .AsNoTracking()
+                .Include(staff => staff.User)
+                .Where(staff => staff.User != null && StaffAccountRoles.Contains(staff.User.Role))
+                .OrderByDescending(staff => staff.User!.CreatedAt)
+                .Select(staff => new
+                {
+                    staffId = staff.Id,
+                    name = staff.Name,
+                    email = staff.User!.Email,
+                    role = staff.User.Role,
+                    status = staff.User.Status,
+                    activity = staff.User.Status == "Disabled" ? "Account disabled" : "Account active",
+                    occurredAt = staff.User.CreatedAt
+                })
+                .Take(20)
+                .ToListAsync();
+
+            return Ok(activities);
+        }
+
+        [Authorize(Roles = "Admin,Staff,Sales Staff,Receptionist")]
         [HttpPost("customers")]
         public async Task<IActionResult> RegisterCustomerByStaff([FromBody] StaffRegisterCustomerDto dto)
         {
@@ -192,8 +286,8 @@ namespace Backend.Controllers
                 LegacyEmail = normalizedEmail,
                 LegacyPasswordHash = passwordHash,
                 LegacyRole = "Customer",
-                Vehicles =
-                [
+                Vehicles = new List<CustomerVehicle>
+                {
                     new CustomerVehicle
                     {
                         Make = (dto.VehicleMake ?? string.Empty).Trim(),
@@ -201,7 +295,7 @@ namespace Backend.Controllers
                         Year = dto.VehicleYear,
                         LicensePlate = (dto.LicensePlate ?? string.Empty).Trim()
                     }
-                ]
+                }
             };
 
             _context.CustomerProfiles.Add(customer);
@@ -242,11 +336,36 @@ namespace Backend.Controllers
                 userId = staff.User?.Id ?? 0,
                 name = staff.Name,
                 email = staff.User?.Email ?? staff.LegacyEmail,
-                role = staff.User?.Role ?? staff.LegacyRole
+                role = staff.User?.Role ?? staff.LegacyRole,
+                status = staff.User?.Status ?? "Active",
+                createdAt = staff.User?.CreatedAt
             };
         }
 
         private static string NormalizeEmail(string? email) =>
             (email ?? string.Empty).Trim().ToLowerInvariant();
+
+        private static string? NormalizeStaffRole(string? role)
+        {
+            var normalizedRole = (role ?? string.Empty).Trim();
+
+            if (string.Equals(normalizedRole, "Staff", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Sales Staff";
+            }
+
+            return StaffAccountRoles.FirstOrDefault(allowedRole =>
+                !string.Equals(allowedRole, "Staff", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(allowedRole, normalizedRole, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string NormalizeStatus(string? status) =>
+            string.Equals(status, "Disabled", StringComparison.OrdinalIgnoreCase) ? "Disabled" : "Active";
+
+        private async Task<int> CountActiveAdminsAsync(int excludedUserId) =>
+            await _context.Users.CountAsync(user =>
+                user.Id != excludedUserId &&
+                user.Role == "Admin" &&
+                user.Status == "Active");
     }
 }
