@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
-import { clearAuthSession, getStoredToken } from '../../utils/authSession';
 import './CustomerModule.css';
 
 function CustomerVehicles() {
   const navigate = useNavigate();
-  const token = getStoredToken();
+  const token = localStorage.getItem('token');
 
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +30,8 @@ function CustomerVehicles() {
       const data = await readApiResponse(response);
 
       if (response.status === 401) {
-        clearAuthSession();
+        localStorage.removeItem('token');
+        localStorage.removeItem('customer');
         navigate('/login');
         return;
       }
@@ -87,7 +87,8 @@ function CustomerVehicles() {
       const data = await readApiResponse(response);
 
       if (response.status === 401) {
-        clearAuthSession();
+        localStorage.removeItem('token');
+        localStorage.removeItem('customer');
         navigate('/login');
         return;
       }

@@ -1,13 +1,11 @@
 import React from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { useParams } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom";
 
 import AdminLayout from "./components/AdminLayout";
-import ProtectedRoute from "./components/ProtectedRoute";
 import CustomerHistory from "./components/Customer/CustomerHistory";
 import CustomerLogin from "./components/Customer/CustomerLogin";
 import CustomerProfile from "./components/Customer/CustomerProfile";
-import CombinedRegister from "./components/Customer/CombinedRegister";
+import CustomerRegister from "./components/Customer/CustomerRegister";
 import CustomerVehicles from "./components/Customer/CustomerVehicles";
 import StaffAddCustomer from "./components/Customer/StaffAddCustomer";
 import CustomerDashboard from "./components/Customer/customerDashboard";
@@ -16,12 +14,7 @@ import CustomerLookup from "./pages/CustomerLookup";
 import CustomerServiceRequests from "./pages/CustomerServiceRequests";
 import Dashboard from "./pages/Dashboard";
 import PartsManagement from "./pages/PartsManagement";
-import StaffDashboard from "./pages/StaffDashboard";
-import StaffInvoices from "./pages/StaffInvoices";
-import StaffInvoiceDetails from "./pages/StaffInvoiceDetails";
-import StaffSalesPage from "./pages/StaffSalesPage";
 import Reports from "./pages/Reports";
-import Notifications from "./pages/Notifications";
 import StaffManagement from "./pages/StaffManagement";
 import VendorManagement from "./pages/VendorManagement";
 
@@ -29,226 +22,157 @@ import "./App.css";
 import "./styles/theme.css";
 import "./styles/layout.css";
 
-function App() {
-  function StaffInvoiceDetailsAlias() {
-    const { id } = useParams();
-    return <Navigate to={`/staff/invoices/${id}`} replace />;
-  }
+function PortalHome() {
+  return (
+    <div className="App portal-home">
+      <div className="portal-shell">
+        <div className="portal-hero">
+          <p className="portal-eyebrow">Merged Workspace</p>
+          <h1>GarageGo</h1>
+          <p className="portal-copy">
+            All merged branches are available here. Open Nirjala&apos;s customer
+            portal, Khushi&apos;s admin pages, the customer-features workflow,
+            or Nisha&apos;s inventory tools from one shared workspace.
+          </p>
+        </div>
 
+        <div className="portal-grid">
+          <section className="portal-card">
+            <span className="portal-badge">Nirjala Branch</span>
+            <h2>Customer Portal</h2>
+            <p>
+              Login, register, manage profile, vehicles, and customer history.
+            </p>
+            <div className="portal-actions">
+              <Link to="/login" className="portal-button primary">
+                Open Customer Login
+              </Link>
+              <Link to="/register" className="portal-button secondary">
+                Register Customer
+              </Link>
+              <Link to="/dashboard" className="portal-button secondary">
+                Customer Dashboard
+              </Link>
+              <Link to="/history" className="portal-button secondary">
+                Service &amp; Purchase History
+              </Link>
+            </div>
+          </section>
+
+          <section className="portal-card">
+            <span className="portal-badge">Khushi Branch</span>
+            <h2>Admin Pages</h2>
+            <p>
+              Open the merged dashboard, staff management, and reports pages.
+            </p>
+            <div className="portal-actions">
+              <Link to="/admin/dashboard" className="portal-button primary">
+                Open Admin Dashboard
+              </Link>
+              <Link
+                to="/admin/staff-management"
+                className="portal-button secondary"
+              >
+                Staff Management
+              </Link>
+              <Link to="/admin/reports" className="portal-button secondary">
+                Reports
+              </Link>
+            </div>
+          </section>
+
+          <section className="portal-card">
+            <span className="portal-badge">customer-features Branch</span>
+            <h2>Customer Features</h2>
+            <p>
+              Open the merged customer lookup and service-request pages from the
+              customer-features branch.
+            </p>
+            <div className="portal-actions">
+              <Link to="/admin/customers" className="portal-button primary">
+                Customer Lookup
+              </Link>
+              <Link
+                to="/admin/customer-services"
+                className="portal-button secondary"
+              >
+                Customer Services
+              </Link>
+            </div>
+          </section>
+
+          <section className="portal-card">
+            <span className="portal-badge">Nisha Branch</span>
+            <h2>Inventory Tools</h2>
+            <p>
+              Manage inventory metrics, vendors, and parts inside the admin
+              workspace.
+            </p>
+            <div className="portal-actions">
+              <Link to="/admin/inventory" className="portal-button primary">
+                Inventory Overview
+              </Link>
+              <Link to="/admin/vendors" className="portal-button secondary">
+                Vendors
+              </Link>
+              <Link to="/admin/parts" className="portal-button secondary">
+                Parts
+              </Link>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<PortalHome />} />
         <Route path="/login" element={<CustomerLogin />} />
-        <Route path="/register" element={<CombinedRegister />} />
-        <Route path="/" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/login" replace />} />
-          
-          {/* Customer routes */}
-          <Route 
-            path="dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['Customer']}>
-                <CustomerDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route
-            path="requests"
-            element={
-              <ProtectedRoute allowedRoles={['Customer']}>
-                <CustomerServiceRequests />
-              </ProtectedRoute>
-            }
-          />
-          <Route 
-            path="profile" 
-            element={
-              <ProtectedRoute allowedRoles={['Customer']}>
-                <CustomerProfile />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="vehicles" 
-            element={
-              <ProtectedRoute allowedRoles={['Customer']}>
-                <CustomerVehicles />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="history" 
-            element={
-              <ProtectedRoute allowedRoles={['Customer']}>
-                <CustomerHistory />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Staff routes */}
-          <Route 
-            path="staff/customers/new" 
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <StaffAddCustomer />
-              </ProtectedRoute>
-            } 
-          />
-          <Route
-            path="staff/customers"
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <CustomerLookup />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="staff/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <StaffDashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="staff/sales"
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <StaffSalesPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="staff/invoices/create" element={<Navigate to="/staff/sales" replace />} />
-          <Route
-            path="staff/invoices"
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <StaffInvoices />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="staff/invoices/:id"
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <StaffInvoiceDetails />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="staff/invoices/details/:id"
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <StaffInvoiceDetailsAlias />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="staff/inventory"
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <AppInventoryOverview />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="staff/reports"
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <Reports />
-              </ProtectedRoute>
-            }
-          />
+        <Route path="/register" element={<CustomerRegister />} />
+        <Route path="/dashboard" element={<CustomerDashboard />} />
+        <Route path="/profile" element={<CustomerProfile />} />
+        <Route path="/vehicles" element={<CustomerVehicles />} />
+        <Route path="/history" element={<CustomerHistory />} />
+        <Route path="/staff/customers/new" element={<StaffAddCustomer />} />
 
-          {/* Legacy redirects */}
-          <Route
-            path="inventory"
-            element={<Navigate to="/admin/inventory" replace />}
-          />
-          <Route
-            path="vendors"
-            element={<Navigate to="/admin/vendors" replace />}
-          />
-          <Route path="parts" element={<Navigate to="/admin/parts" replace />} />
-          <Route
-            path="staff-management"
-            element={<Navigate to="/admin/staff-management" replace />}
-          />
-          <Route
-            path="reports"
-            element={<Navigate to="/admin/reports" replace />}
-          />
+        <Route
+          path="/inventory"
+          element={<Navigate to="/admin/inventory" replace />}
+        />
+        <Route
+          path="/vendors"
+          element={<Navigate to="/admin/vendors" replace />}
+        />
+        <Route path="/parts" element={<Navigate to="/admin/parts" replace />} />
+        <Route
+          path="/staff-management"
+          element={<Navigate to="/admin/staff-management" replace />}
+        />
+        <Route
+          path="/reports"
+          element={<Navigate to="/admin/reports" replace />}
+        />
 
-          <Route path="admin" element={<Navigate to="/admin/dashboard" replace />} />
-
-          {/* Admin routes */}
-          <Route 
-            path="admin/dashboard" 
-            element={
-              <ProtectedRoute allowedRoles={['Admin']}>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="admin/notifications" 
-            element={
-              <ProtectedRoute allowedRoles={['Admin']}>
-                <Notifications />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="admin/staff-management" 
-            element={
-              <ProtectedRoute allowedRoles={['Admin']}>
-                <StaffManagement />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="admin/customers" 
-            element={<Navigate to="/admin/dashboard" replace />}
-          />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="staff-management" element={<StaffManagement />} />
+          <Route path="customers" element={<CustomerLookup />} />
           <Route
-            path="admin/customer-services"
-            element={<Navigate to="/admin/dashboard" replace />}
+            path="customer-services"
+            element={<CustomerServiceRequests />}
           />
-          <Route 
-            path="admin/inventory" 
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <AppInventoryOverview />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="admin/vendors" 
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <VendorManagement />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="admin/parts" 
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <PartsManagement />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="admin/reports" 
-            element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <Reports />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="inventory" element={<AppInventoryOverview />} />
+          <Route path="vendors" element={<VendorManagement />} />
+          <Route path="parts" element={<PartsManagement />} />
+          <Route path="reports" element={<Reports />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

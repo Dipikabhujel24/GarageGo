@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
-import { clearAuthSession, getStoredToken, updateStoredAuthUser } from '../../utils/authSession';
 import './CustomerModule.css';
 
 const initialForm = {
@@ -20,7 +19,7 @@ function CustomerProfile() {
   const [formData, setFormData] = useState(initialForm);
   const [profileMeta, setProfileMeta] = useState({ vehicleCount: 0, lastUpdated: '—' });
 
-  const token = getStoredToken();
+  const token = localStorage.getItem('token');
 
   const displayName = formData.name.trim() || 'Customer';
 
@@ -55,7 +54,8 @@ function CustomerProfile() {
         const data = await readApiResponse(response);
 
         if (response.status === 401) {
-          clearAuthSession();
+          localStorage.removeItem('token');
+          localStorage.removeItem('customer');
           navigate('/login');
           return;
         }
@@ -112,7 +112,8 @@ function CustomerProfile() {
       const data = await readApiResponse(response);
 
       if (response.status === 401) {
-        clearAuthSession();
+        localStorage.removeItem('token');
+        localStorage.removeItem('customer');
         navigate('/login');
         return;
       }
@@ -121,13 +122,13 @@ function CustomerProfile() {
         throw new Error(getApiErrorMessage(data, 'Failed to update profile.'));
       }
 
-      if (data.user) {
-        updateStoredAuthUser(data.user);
+      if (data.customer) {
+        localStorage.setItem('customer', JSON.stringify(data.customer));
         setFormData({
-          name: data.user.name || '',
-          email: data.user.email || '',
-          phone: data.user.phone || '',
-          address: data.user.address || ''
+          name: data.customer.name || '',
+          email: data.customer.email || '',
+          phone: data.customer.phone || '',
+          address: data.customer.address || ''
         });
       }
 
