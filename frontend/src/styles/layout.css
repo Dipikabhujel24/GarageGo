@@ -778,6 +778,85 @@ body {
   border-color: transparent;
 }
 
+.management-link {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 16px;
+  text-decoration: none;
+}
+
+.appointments-management {
+  display: grid;
+  gap: 18px;
+}
+
+.management-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.management-section-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.table-note {
+  margin: 6px 0 0;
+  color: var(--text-main);
+  opacity: 0.74;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.review-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.review-card {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.review-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.review-customer {
+  margin: 0;
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+.review-date {
+  margin: 4px 0 0;
+  color: var(--text-main);
+  opacity: 0.68;
+  font-size: 0.86rem;
+}
+
+.review-rating {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(173, 216, 230, 0.35);
+  color: var(--text-main);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.review-comment {
+  margin: 0;
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
 .input-field textarea,
 textarea.input-field {
   min-height: 96px;
@@ -905,7 +984,9 @@ textarea.input-field {
   .feature-search-row,
   .customer-feature-layout,
   .detail-grid,
-  .customer-request-grid {
+  .customer-request-grid,
+  .management-summary-grid,
+  .review-card-grid {
     grid-template-columns: 1fr;
   }
 }

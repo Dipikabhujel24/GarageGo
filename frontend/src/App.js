@@ -11,12 +11,15 @@ import CombinedRegister from "./components/Customer/CombinedRegister";
 import CustomerVehicles from "./components/Customer/CustomerVehicles";
 import StaffAddCustomer from "./components/Customer/StaffAddCustomer";
 import CustomerDashboard from "./components/Customer/customerDashboard";
+import AppointmentsManagement from "./pages/AppointmentsManagement";
 import AppInventoryOverview from "./pages/InventoryOverview";
 import CustomerLookup from "./pages/CustomerLookup";
 import CustomerReports from "./pages/CustomerReports";
 import CustomerServiceRequests from "./pages/CustomerServiceRequests";
 import Dashboard from "./pages/Dashboard";
+import PartRequestsManagement from "./pages/PartRequestsManagement";
 import PartsManagement from "./pages/PartsManagement";
+import ServiceReviewsManagement from "./pages/ServiceReviewsManagement";
 import StaffDashboard from "./pages/StaffDashboard";
 import StaffInvoices from "./pages/StaffInvoices";
 import StaffInvoiceDetails from "./pages/StaffInvoiceDetails";
@@ -168,6 +171,30 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="staff/appointments-management"
+            element={
+              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
+                <AppointmentsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="staff/part-requests"
+            element={
+              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
+                <PartRequestsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="staff/service-reviews"
+            element={
+              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
+                <ServiceReviewsManagement />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Legacy redirects */}
           <Route
@@ -213,7 +240,7 @@ function App() {
           />
           <Route
             path="admin/customer-services"
-            element={<Navigate to="/admin/dashboard" replace />}
+            element={<Navigate to="/admin/appointments-management" replace />}
           />
           <Route 
             path="admin/inventory" 
@@ -254,6 +281,30 @@ function App() {
                 <Reports />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="admin/appointments-management"
+            element={
+              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
+                <AppointmentsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/part-requests"
+            element={
+              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
+                <PartRequestsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="admin/service-reviews"
+            element={
+              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
+                <ServiceReviewsManagement />
+              </ProtectedRoute>
+            }
           />
         </Route>
 
