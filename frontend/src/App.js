@@ -13,6 +13,7 @@ import StaffAddCustomer from "./components/Customer/StaffAddCustomer";
 import CustomerDashboard from "./components/Customer/customerDashboard";
 import AppInventoryOverview from "./pages/InventoryOverview";
 import CustomerLookup from "./pages/CustomerLookup";
+import CustomerReports from "./pages/CustomerReports";
 import CustomerServiceRequests from "./pages/CustomerServiceRequests";
 import Dashboard from "./pages/Dashboard";
 import PartsManagement from "./pages/PartsManagement";
@@ -98,6 +99,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
                 <CustomerLookup />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="staff/customer-reports"
+            element={
+              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
+                <CustomerReports />
               </ProtectedRoute>
             }
           />
