@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE } from '../config/api';
+import { getStoredToken } from '../utils/authSession';
 
 const REPORTS_API_BASE_URL = API_BASE;
 
@@ -12,7 +13,7 @@ const reportsApi = axios.create({
 });
 
 reportsApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = getStoredToken() || localStorage.getItem('token') || '';
 
   if (token) {
     config.headers = config.headers ?? {};

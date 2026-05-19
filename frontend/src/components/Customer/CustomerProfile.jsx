@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
 import { clearAuthSession, getStoredToken, updateStoredAuthUser } from '../../utils/authSession';
+import SecureForm from '../SecureForm';
+import AiMaintenanceAlerts from './AiMaintenanceAlerts';
 import './CustomerModule.css';
 
 const initialForm = {
@@ -182,7 +184,7 @@ function CustomerProfile() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="form-grid profile-form-grid">
+            <SecureForm onSubmit={handleSubmit} className="form-grid profile-form-grid" includePassword={false}>
               <div className="form-group">
                 <label htmlFor="name">Name</label>
                 <input id="name" name="name" value={formData.name} onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))} required />
@@ -217,7 +219,7 @@ function CustomerProfile() {
                   Back to Dashboard
                 </button>
               </div>
-            </form>
+            </SecureForm>
           </section>
 
           <aside className="customer-aside-panel">
@@ -239,6 +241,8 @@ function CustomerProfile() {
                 </div>
               </div>
             </div>
+
+            <AiMaintenanceAlerts compact />
 
             <div className="customer-aside-card customer-aside-card--soft">
               <h4>Tips</h4>

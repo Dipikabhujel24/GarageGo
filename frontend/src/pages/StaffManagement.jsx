@@ -1,4 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import SecureForm from '../components/SecureForm';
+import {
+  emailInputAutofillProps,
+  newPasswordAutofillProps,
+  textInputAutofillProps,
+} from '../utils/formAutofill';
 import {
   addStaff,
   deleteStaff,
@@ -57,7 +63,7 @@ function StaffForm({
   onCancelEdit,
 }) {
   return (
-    <form className="staff-form card" onSubmit={onSubmit}>
+    <SecureForm className="staff-form card" onSubmit={onSubmit}>
       <h3 className="staff-card-title card-title">
         {isEditing ? 'Edit Staff' : 'Add Staff'}
       </h3>
@@ -76,6 +82,7 @@ function StaffForm({
           aria-invalid={Boolean(fieldErrors.name)}
           aria-describedby={fieldErrors.name ? 'name-error' : undefined}
           required
+          {...textInputAutofillProps}
         />
         {fieldErrors.name ? (
           <p className="field-error" id="name-error">
@@ -98,6 +105,7 @@ function StaffForm({
           aria-invalid={Boolean(fieldErrors.email)}
           aria-describedby={fieldErrors.email ? 'email-error' : undefined}
           required
+          {...emailInputAutofillProps}
         />
         {fieldErrors.email ? (
           <p className="field-error" id="email-error">
@@ -117,6 +125,7 @@ function StaffForm({
           value={formData.role}
           onChange={onFieldChange}
           disabled={isSubmitting || isDeleting}
+          autoComplete="off"
         >
           {GARAGE_STAFF_ROLES.map((role) => (
             <option key={role} value={role}>
@@ -137,6 +146,7 @@ function StaffForm({
           value={formData.status}
           onChange={onFieldChange}
           disabled={isSubmitting || isDeleting}
+          autoComplete="off"
         >
           <option value="Active">Active</option>
           <option value="Disabled">Disabled</option>
@@ -158,6 +168,7 @@ function StaffForm({
           aria-describedby={fieldErrors.password ? 'password-error' : undefined}
           required={!isEditing}
           placeholder={isEditing ? 'Leave blank to keep current password' : ''}
+          {...newPasswordAutofillProps}
         />
         {fieldErrors.password ? (
           <p className="field-error" id="password-error">
@@ -186,7 +197,7 @@ function StaffForm({
           </button>
         )}
       </div>
-    </form>
+    </SecureForm>
   );
 }
 

@@ -1,14 +1,72 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { loadStoredInvoices } from '../utils/invoiceStorage';
+import { extractApiError, getSales, getSalesCatalog } from '../services/api';
+
+function formatCurrency(value) {
+  return `Rs. ${Number(value || 0).toFixed(2)}`;
+}
 
 function StaffInvoices() {
-  const [invoices] = useState(() => loadStoredInvoices());
+  const [invoices, setInvoices] = useState([]);
+  const [customerNames, setCustomerNames] = useState({});
+  const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const latestInvoice = useMemo(() => invoices[0] || null, [invoices]);
+  useEffect(() => {
+    let mounted = true;
+
+    const loadInvoices = async () => {
+      setIsLoading(true);
+
+      try {
+        const [salesResponse, catalogResponse] = await Promise.all([
+          getSales(),
+          getSalesCatalog(),
+        ]);
+
+        if (!mounted) {
+          return;
+        }
+
+        const customers = catalogResponse.data?.customers ?? [];
+        const nameMap = customers.reduce((accumulator, customer) => {
+          accumulator[customer.id] = {
+            name: customer.name,
+            email: customer.email,
+          };
+          return accumulator;
+        }, {});
+
+        setCustomerNames(nameMap);
+        setInvoices(salesResponse.data ?? []);
+      } catch (error) {
+        if (mounted) {
+          setFeedback({ type: 'error', message: extractApiError(error) });
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadInvoices();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const latestInvoice = invoices[0] || null;
 
   return (
     <section className="container">
+      {feedback.message ? (
+        <div className={`sales-banner sales-banner--${feedback.type || 'error'}`} style={{ marginBottom: '14px' }}>
+          {feedback.message}
+        </div>
+      ) : null}
+
       <div className="page-header-card card">
         <h2 className="section-title card-title">Invoices</h2>
         <p className="section-copy">Review recent sales invoices, open details, print, download, or email them.</p>
@@ -17,9 +75,14 @@ function StaffInvoices() {
       <div className="dashboard-grid">
         <article className="dashboard-card">
           <h3>Invoice Summary</h3>
-          <p>{invoices.length} invoice{invoices.length === 1 ? '' : 's'} stored for the staff workspace.</p>
+          <p>
+            {isLoading
+              ? 'Loading invoices...'
+              : `${invoices.length} invoice${invoices.length === 1 ? '' : 's'} from the sales API.`}
+          </p>
           <div className="dashboard-card-links">
             <Link className="dashboard-card-link primary" to="/staff/sales">Create Invoice</Link>
+            <Link className="dashboard-card-link" to="/staff/sales-history">Sales History</Link>
           </div>
         </article>
 
@@ -27,16 +90,17 @@ function StaffInvoices() {
           <h3>Latest Invoice</h3>
           {latestInvoice ? (
             <>
-              <p>Invoice #{latestInvoice.saleId}</p>
-              <p>Total Rs{Number(latestInvoice.totalAmount || 0).toFixed(2)}</p>
+              <p>Invoice #{latestInvoice.id}</p>
+              <p>Customer ID {latestInvoice.customerId}</p>
+              <p>Final {formatCurrency(latestInvoice.finalAmount ?? latestInvoice.totalAmount)}</p>
               <div className="dashboard-card-links">
-                <Link className="dashboard-card-link primary" to={`/staff/invoices/${latestInvoice.saleId}`}>
+                <Link className="dashboard-card-link primary" to={`/staff/invoices/${latestInvoice.id}`}>
                   Open Details
                 </Link>
               </div>
             </>
           ) : (
-            <p>No invoices have been created yet.</p>
+            <p>{isLoading ? 'Loading...' : 'No invoices have been created yet.'}</p>
           )}
         </article>
       </div>
@@ -48,31 +112,42 @@ function StaffInvoices() {
             <thead>
               <tr>
                 <th>Invoice</th>
+                <th>Customer ID</th>
                 <th>Customer</th>
                 <th>Email</th>
-                <th>Total</th>
+                <th>Subtotal</th>
+                <th>Final</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
-              {invoices.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td className="empty-state" colSpan="5">No invoices available.</td>
+                  <td className="empty-state" colSpan="7">Loading invoices...</td>
+                </tr>
+              ) : invoices.length === 0 ? (
+                <tr>
+                  <td className="empty-state" colSpan="7">No invoices available.</td>
                 </tr>
               ) : (
-                invoices.map((invoice) => (
-                  <tr key={invoice.saleId}>
-                    <td>#{invoice.saleId}</td>
-                    <td>{invoice.customerName || `Customer ${invoice.customerId}`}</td>
-                    <td>{invoice.customerEmail || '-'}</td>
-                    <td>Rs{Number(invoice.totalAmount || 0).toFixed(2)}</td>
-                    <td>
-                      <Link className="button button-primary" to={`/staff/invoices/${invoice.saleId}`}>
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))
+                invoices.map((invoice) => {
+                  const customer = customerNames[invoice.customerId] || {};
+                  return (
+                    <tr key={invoice.id}>
+                      <td>#{invoice.id}</td>
+                      <td>{invoice.customerId}</td>
+                      <td>{customer.name || `Customer ${invoice.customerId}`}</td>
+                      <td>{customer.email || '-'}</td>
+                      <td>{formatCurrency(invoice.totalAmount)}</td>
+                      <td>{formatCurrency(invoice.finalAmount ?? invoice.totalAmount)}</td>
+                      <td>
+                        <Link className="button button-primary" to={`/staff/invoices/${invoice.id}`}>
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

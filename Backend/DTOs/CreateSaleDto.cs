@@ -45,6 +45,10 @@ namespace Backend.DTOs
         public int CustomerId { get; set; }
         public DateTime Date { get; set; }
         public decimal TotalAmount { get; set; }
+        public decimal DiscountAmount { get; set; }
+        public decimal FinalAmount { get; set; }
+        public bool LoyaltyDiscountApplied { get; set; }
+        public int LoyaltyPointsEarned { get; set; }
         public List<SaleInvoiceItemDto> Items { get; set; } = new();
     }
 
@@ -60,6 +64,7 @@ namespace Backend.DTOs
     public class SendInvoiceEmailDto
     {
         public string Email { get; set; } = string.Empty;
-        public SaleInvoiceDto Invoice { get; set; } = new();
+        public int? SaleId { get; set; }
+        public SaleInvoiceDto? Invoice { get; set; }
     }
 }

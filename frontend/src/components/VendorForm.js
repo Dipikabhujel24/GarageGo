@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import SecureForm from './SecureForm';
+import { emailInputAutofillProps, textInputAutofillProps } from '../utils/formAutofill';
 
 const initialForm = {
   vendorName: '',
@@ -62,7 +64,7 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
   };
 
   return (
-    <form className="inventory-form-grid" onSubmit={handleSubmit}>
+    <SecureForm className="inventory-form-grid" onSubmit={handleSubmit} includePassword={false}>
       {error && (
         <div className="message-banner error inventory-form-error inventory-span-two">
           {error}
@@ -78,6 +80,7 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           onChange={handleChange}
           placeholder="Enter vendor name"
           required
+          {...textInputAutofillProps}
         />
       </label>
 
@@ -90,6 +93,7 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           onChange={handleChange}
           placeholder="Enter company name"
           required
+          {...textInputAutofillProps}
         />
       </label>
 
@@ -102,6 +106,7 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           onChange={handleChange}
           placeholder="Enter phone number"
           required
+          {...textInputAutofillProps}
         />
       </label>
 
@@ -115,6 +120,7 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           onChange={handleChange}
           placeholder="Enter email address"
           required
+          {...emailInputAutofillProps}
         />
       </label>
 
@@ -127,6 +133,7 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           onChange={handleChange}
           placeholder="Enter business address"
           required
+          {...textInputAutofillProps}
         />
       </label>
 
@@ -160,7 +167,7 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
           {isSubmitting ? 'Saving...' : isEditing ? 'Update Vendor' : 'Add Vendor'}
         </button>
       </div>
-    </form>
+    </SecureForm>
   );
 }
 

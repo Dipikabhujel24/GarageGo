@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import SecureForm from '../components/SecureForm';
 import {
   getCustomerDetails,
   searchCustomers,
 } from '../services/customerFeatureService';
+import { searchInputAutofillProps } from '../utils/formAutofill';
 
 function CustomerLookup() {
   const [query, setQuery] = useState('');
@@ -58,7 +60,7 @@ function CustomerLookup() {
         </p>
       </div>
 
-      <form className="feature-search-card card" onSubmit={handleSearch}>
+      <SecureForm className="feature-search-card card" onSubmit={handleSearch} includePassword={false} includeEmail={false}>
         <label className="form-label" htmlFor="customer-search">
           Search
         </label>
@@ -69,12 +71,13 @@ function CustomerLookup() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Name, phone, ID, vehicle number, or plate"
+            {...searchInputAutofillProps}
           />
           <button className="button button-primary" type="submit">
             Search
           </button>
         </div>
-      </form>
+      </SecureForm>
 
       {message && <div className="message-banner">{message}</div>}
 

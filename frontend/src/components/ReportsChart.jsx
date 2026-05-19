@@ -44,16 +44,16 @@ function ReportsChart({ data }) {
             data={chartData}
             margin={{ top: 10, right: 24, left: -10, bottom: 0 }}
           >
-            <CartesianGrid stroke="#E3EAF5" strokeDasharray="4 4" />
+            <CartesianGrid stroke="#E8E2F0" strokeDasharray="4 4" />
             <XAxis 
               dataKey="label" 
-              stroke="#1F2A44" 
+              stroke="#1F1F1F" 
               tickLine={false} 
               axisLine={false}
               style={{ fontSize: '0.85rem' }}
             />
             <YAxis
-              stroke="#1F2A44"
+              stroke="#1F1F1F"
               tickLine={false}
               axisLine={false}
               width={64}
@@ -63,21 +63,21 @@ function ReportsChart({ data }) {
             <Tooltip
               contentStyle={{
                 backgroundColor: '#FFFFFF',
-                border: '1px solid #E3EAF5',
+                border: '1px solid #E8E2F0',
                 borderRadius: '12px',
-                color: '#1F2A44',
-                boxShadow: '0 12px 24px rgba(42, 82, 152, 0.12)',
+                color: '#1A1429',
+                boxShadow: '0 12px 24px rgba(44, 36, 71, 0.12)',
               }}
-              labelStyle={{ color: '#1F2A44', fontWeight: 700 }}
+              labelStyle={{ color: '#1A1429', fontWeight: 700 }}
               formatter={(value) => [`Rs${formatNumber(value)}`, 'Revenue']}
             />
             <Line
               type="monotone"
               dataKey="revenue"
-              stroke="#2A5298"
+              stroke="#3F2F66"
               strokeWidth={3}
-              dot={{ r: 5, fill: '#2A5298', strokeWidth: 2, stroke: '#ffffff' }}
-              activeDot={{ r: 7, fill: '#1f78ea' }}
+              dot={{ r: 5, fill: '#EC6B9A', strokeWidth: 2, stroke: '#ffffff' }}
+              activeDot={{ r: 7, fill: '#1A1429' }}
             />
           </LineChart>
         </ResponsiveContainer>

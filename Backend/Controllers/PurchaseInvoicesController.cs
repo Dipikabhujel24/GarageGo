@@ -1,6 +1,7 @@
 using Backend.Data;
 using Backend.DTOs;
 using Backend.Models;
+using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,11 +14,16 @@ namespace Backend.Controllers
     public class PurchaseInvoicesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly NotificationService _notificationService;
         private readonly ILogger<PurchaseInvoicesController> _logger;
 
-        public PurchaseInvoicesController(AppDbContext context, ILogger<PurchaseInvoicesController> logger)
+        public PurchaseInvoicesController(
+            AppDbContext context,
+            NotificationService notificationService,
+            ILogger<PurchaseInvoicesController> logger)
         {
             _context = context;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -146,6 +152,11 @@ namespace Backend.Controllers
                 return BadRequest(new { message = "Unable to create purchase invoice. Check invoice number and item details." });
             }
 
+            foreach (var partId in partIds)
+            {
+                await _notificationService.HandlePartStockChangedAsync(partId);
+            }
+
             var createdInvoice = await _context.PurchaseInvoices
                 .AsNoTracking()
                 .Include(existingInvoice => existingInvoice.Vendor)
@@ -196,6 +207,11 @@ namespace Backend.Controllers
             _context.PurchaseInvoices.Remove(invoice);
             await _context.SaveChangesAsync();
             await transaction.CommitAsync();
+
+            foreach (var partId in partIds)
+            {
+                await _notificationService.HandlePartStockChangedAsync(partId);
+            }
 
             return NoContent();
         }
