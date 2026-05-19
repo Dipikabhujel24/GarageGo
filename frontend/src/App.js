@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useParams } from "react-router-dom";
+import { useGlobalFormAutofillOff } from "./hooks/useGlobalFormAutofillOff";
 
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -16,6 +17,9 @@ import AppInventoryOverview from "./pages/InventoryOverview";
 import CustomerLookup from "./pages/CustomerLookup";
 import CustomerReports from "./pages/CustomerReports";
 import CustomerServiceRequests from "./pages/CustomerServiceRequests";
+import CustomerAppointmentsPage from "./pages/CustomerAppointmentsPage";
+import CustomerPartRequestsPage from "./pages/CustomerPartRequestsPage";
+import CustomerReviewsPage from "./pages/CustomerReviewsPage";
 import Dashboard from "./pages/Dashboard";
 import PartRequestsManagement from "./pages/PartRequestsManagement";
 import PartsManagement from "./pages/PartsManagement";
@@ -24,6 +28,7 @@ import StaffDashboard from "./pages/StaffDashboard";
 import StaffInvoices from "./pages/StaffInvoices";
 import StaffInvoiceDetails from "./pages/StaffInvoiceDetails";
 import StaffSalesPage from "./pages/StaffSalesPage";
+import StaffSalesHistory from "./pages/StaffSalesHistory";
 import Reports from "./pages/Reports";
 import Notifications from "./pages/Notifications";
 import StaffManagement from "./pages/StaffManagement";
@@ -35,6 +40,8 @@ import "./styles/theme.css";
 import "./styles/layout.css";
 
 function App() {
+  useGlobalFormAutofillOff();
+
   function StaffInvoiceDetailsAlias() {
     const { id } = useParams();
     return <Navigate to={`/staff/invoices/${id}`} replace />;
@@ -43,8 +50,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<CustomerLogin />} />
-        <Route path="/register" element={<CombinedRegister />} />
+        <Route path="/login" element={<CustomerLogin key="login" />} />
+        <Route path="/register" element={<CombinedRegister key="register" />} />
         <Route path="/" element={<AdminLayout />}>
           <Route index element={<Navigate to="/login" replace />} />
           
@@ -56,6 +63,30 @@ function App() {
                 <CustomerDashboard />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="appointments"
+            element={
+              <ProtectedRoute allowedRoles={['Customer']}>
+                <CustomerAppointmentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="part-requests"
+            element={
+              <ProtectedRoute allowedRoles={['Customer']}>
+                <CustomerPartRequestsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="reviews"
+            element={
+              <ProtectedRoute allowedRoles={['Customer']}>
+                <CustomerReviewsPage />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="requests"
@@ -128,6 +159,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
                 <StaffSalesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="staff/sales-history"
+            element={
+              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
+                <StaffSalesHistory />
               </ProtectedRoute>
             }
           />

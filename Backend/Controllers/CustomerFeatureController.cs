@@ -1,5 +1,6 @@
 using Backend.Data;
 using Backend.Models;
+using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,10 +25,12 @@ public class CustomerFeatureController : ControllerBase
     ];
 
     private readonly AppDbContext _context;
+    private readonly NotificationService _notificationService;
 
-    public CustomerFeatureController(AppDbContext context)
+    public CustomerFeatureController(AppDbContext context, NotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     [Authorize(Roles = "Customer")]
@@ -55,14 +58,14 @@ public class CustomerFeatureController : ControllerBase
         return Ok(await BuildRequestDashboardAsync(customerId.Value));
     }
 
-    [Authorize(Roles = "Admin,Staff,Sales Staff,Receptionist")]
+    [Authorize(Roles = "Admin,Staff,Sales Staff,Inventory Staff,Store Keeper,Cashier,Service Advisor,Mechanic / Technician,Purchase Officer,Accountant,Customer Support,Branch Manager,Receptionist")]
     [HttpGet("all-requests")]
     public async Task<IActionResult> GetAllRequests()
     {
         return Ok(await BuildRequestDashboardAsync());
     }
 
-    [Authorize(Roles = "Admin,Staff,Sales Staff,Receptionist")]
+    [Authorize(Roles = "Admin,Staff,Sales Staff,Inventory Staff,Store Keeper,Cashier,Service Advisor,Mechanic / Technician,Purchase Officer,Accountant,Customer Support,Branch Manager,Receptionist")]
     [HttpGet("{customerId:int}/vehicles")]
     public async Task<IActionResult> GetVehicles(int customerId)
     {
@@ -85,7 +88,7 @@ public class CustomerFeatureController : ControllerBase
         return Ok(vehicles);
     }
 
-    [Authorize(Roles = "Admin,Staff,Sales Staff,Receptionist")]
+    [Authorize(Roles = "Admin,Staff,Sales Staff,Inventory Staff,Store Keeper,Cashier,Service Advisor,Mechanic / Technician,Purchase Officer,Accountant,Customer Support,Branch Manager,Receptionist")]
     [HttpGet("{customerId:int}/service-history")]
     public async Task<IActionResult> GetServiceHistory(int customerId)
     {
@@ -153,6 +156,12 @@ public class CustomerFeatureController : ControllerBase
         _context.Appointments.Add(appointment);
         await _context.SaveChangesAsync();
 
+        var customer = await _context.CustomerProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(profile => profile.Id == customerId.Value);
+        var customerName = customer?.Name ?? "Customer";
+        await _notificationService.NotifyNewAppointmentAsync(appointment, userId, customerName);
+
         return Created($"/api/customer-features/appointments/{appointment.Id}", appointment);
     }
 
@@ -183,6 +192,12 @@ public class CustomerFeatureController : ControllerBase
 
         _context.UnavailablePartRequests.Add(partRequest);
         await _context.SaveChangesAsync();
+
+        var customer = await _context.CustomerProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(profile => profile.Id == customerId.Value);
+        var customerName = customer?.Name ?? "Customer";
+        await _notificationService.NotifyNewPartRequestAsync(partRequest, userId, customerName);
 
         return Created($"/api/customer-features/part-requests/{partRequest.Id}", partRequest);
     }

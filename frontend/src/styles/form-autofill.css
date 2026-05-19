@@ -1,0 +1,9 @@
+/* Discourage visible autofill styling on light form fields */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--text-dark);
+  transition: background-color 99999s ease-out;
+}

@@ -326,15 +326,15 @@ function Dashboard() {
                     data={chartSeries}
                     margin={{ top: 10, right: 24, left: -10, bottom: 0 }}
                   >
-                    <CartesianGrid stroke="#E3EAF5" strokeDasharray="4 4" />
+                    <CartesianGrid stroke="#E8E2F0" strokeDasharray="4 4" />
                     <XAxis
                       dataKey="label"
-                      stroke="#1F2A44"
+                      stroke="#1F1F1F"
                       tickLine={false}
                       axisLine={false}
                     />
                     <YAxis
-                      stroke="#1F2A44"
+                      stroke="#1F1F1F"
                       tickLine={false}
                       axisLine={false}
                       width={64}
@@ -343,21 +343,21 @@ function Dashboard() {
                     <Tooltip
                       contentStyle={{
                         backgroundColor: '#FFFFFF',
-                        border: '1px solid #D9E6F8',
+                        border: '1px solid #E8E2F0',
                         borderRadius: '14px',
-                        color: '#1F2A44',
-                        boxShadow: '0 18px 36px rgba(42, 82, 152, 0.16)',
+                        color: '#1F1F1F',
+                        boxShadow: '0 18px 36px rgba(44, 36, 71, 0.12)',
                       }}
-                      labelStyle={{ color: '#1F2A44', fontWeight: 800 }}
+                      labelStyle={{ color: '#1F1F1F', fontWeight: 800 }}
                       formatter={chartTooltipFormatter}
                     />
                     <Line
                       type="monotone"
                       dataKey="revenue"
-                      stroke="#2A5298"
+                      stroke="#3F2F66"
                       strokeWidth={3}
-                      dot={{ r: 4, fill: '#87A8DC', strokeWidth: 0 }}
-                      activeDot={{ r: 7, fill: '#1E3C72', stroke: '#FFFFFF', strokeWidth: 3 }}
+                      dot={{ r: 4, fill: '#EC6B9A', strokeWidth: 0 }}
+                      activeDot={{ r: 7, fill: '#1A1429', stroke: '#FFFFFF', strokeWidth: 3 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>

@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
 import { clearAuthSession, getStoredToken } from '../../utils/authSession';
+import SecureForm from '../SecureForm';
+import {
+  emailInputAutofillProps,
+  newPasswordAutofillProps,
+  numberInputAutofillProps,
+  textInputAutofillProps,
+} from '../../utils/formAutofill';
 import './CustomerModule.css';
 
 const initialForm = {
@@ -115,7 +122,7 @@ function StaffAddCustomer() {
           </section>
         )}
 
-        <form className="staff-form-grid" onSubmit={handleSubmit}>
+        <SecureForm className="staff-form-grid" onSubmit={handleSubmit}>
           <section className="customer-form-card">
             <div className="customer-form-card__header">
               <div>
@@ -127,22 +134,22 @@ function StaffAddCustomer() {
             <div className="form-grid">
               <div className="form-group">
                 <label htmlFor="name">Customer Name</label>
-                <input id="name" name="name" value={formData.name} onChange={handleChange} required />
+                <input id="name" name="name" value={formData.name} onChange={handleChange} required {...textInputAutofillProps} />
               </div>
 
               <div className="form-group">
                 <label htmlFor="email">Email</label>
-                <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+                <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required {...emailInputAutofillProps} />
               </div>
 
               <div className="form-group">
                 <label htmlFor="phone">Phone</label>
-                <input id="phone" name="phone" value={formData.phone} onChange={handleChange} required />
+                <input id="phone" name="phone" value={formData.phone} onChange={handleChange} required {...textInputAutofillProps} />
               </div>
 
               <div className="form-group">
                 <label htmlFor="password">Temporary Password</label>
-                <input id="password" name="password" type="password" minLength="6" value={formData.password} onChange={handleChange} required />
+                <input id="password" name="password" type="password" minLength="6" value={formData.password} onChange={handleChange} required {...newPasswordAutofillProps} />
               </div>
 
               <div className="form-group full">
@@ -163,22 +170,22 @@ function StaffAddCustomer() {
             <div className="form-grid">
               <div className="form-group">
                 <label htmlFor="vehicleMake">Vehicle Make</label>
-                <input id="vehicleMake" name="vehicleMake" value={formData.vehicleMake} onChange={handleChange} required />
+                <input id="vehicleMake" name="vehicleMake" value={formData.vehicleMake} onChange={handleChange} required {...textInputAutofillProps} />
               </div>
 
               <div className="form-group">
                 <label htmlFor="vehicleModel">Vehicle Model</label>
-                <input id="vehicleModel" name="vehicleModel" value={formData.vehicleModel} onChange={handleChange} required />
+                <input id="vehicleModel" name="vehicleModel" value={formData.vehicleModel} onChange={handleChange} required {...textInputAutofillProps} />
               </div>
 
               <div className="form-group">
                 <label htmlFor="vehicleYear">Vehicle Year</label>
-                <input id="vehicleYear" name="vehicleYear" type="number" min="1900" max="2100" value={formData.vehicleYear} onChange={handleChange} required />
+                <input id="vehicleYear" name="vehicleYear" type="number" min="1900" max="2100" value={formData.vehicleYear} onChange={handleChange} required {...numberInputAutofillProps} />
               </div>
 
               <div className="form-group">
                 <label htmlFor="licensePlate">License Plate</label>
-                <input id="licensePlate" name="licensePlate" value={formData.licensePlate} onChange={handleChange} />
+                <input id="licensePlate" name="licensePlate" value={formData.licensePlate} onChange={handleChange} {...textInputAutofillProps} />
               </div>
             </div>
           </section>
@@ -191,7 +198,7 @@ function StaffAddCustomer() {
               Back to Dashboard
             </button>
           </div>
-        </form>
+        </SecureForm>
       </div>
     </div>
   );

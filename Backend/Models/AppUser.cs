@@ -32,6 +32,12 @@ namespace Backend.Models
         public string? VerificationCode { get; set; }
         public DateTime? VerificationExpiresAt { get; set; }
 
+        public string? PasswordResetCode { get; set; }
+        public DateTime? PasswordResetExpiresAt { get; set; }
+
+        [MaxLength(128)]
+        public string? GoogleId { get; set; }
+
         public CustomerProfile? CustomerProfile { get; set; }
 
         public StaffProfile? StaffProfile { get; set; }

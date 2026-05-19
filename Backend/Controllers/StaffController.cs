@@ -252,7 +252,7 @@ namespace Backend.Controllers
             return Ok(activities);
         }
 
-        [Authorize(Roles = "Admin,Staff,Sales Staff,Receptionist")]
+        [Authorize(Roles = "Admin,Staff,Sales Staff,Inventory Staff,Store Keeper,Cashier,Service Advisor,Mechanic / Technician,Purchase Officer,Accountant,Customer Support,Branch Manager,Receptionist")]
         [HttpPost("customers")]
         public async Task<IActionResult> RegisterCustomerByStaff([FromBody] StaffRegisterCustomerDto dto)
         {

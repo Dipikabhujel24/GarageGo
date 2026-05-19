@@ -45,7 +45,7 @@ namespace Backend.Controllers
 
     [ApiController]
     [Route("api/reports/customers")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Roles = "Admin,Staff,Sales Staff,Inventory Staff,Store Keeper,Cashier,Service Advisor,Mechanic / Technician,Purchase Officer,Accountant,Customer Support,Branch Manager,Receptionist")]
     public class CustomerReportsController : ControllerBase
     {
         private static readonly string[] PendingStatuses =

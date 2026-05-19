@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/staff-customers")]
-[Authorize(Roles = "Admin,Staff,Sales Staff,Receptionist")]
+[Authorize(Roles = "Admin,Staff,Sales Staff,Inventory Staff,Store Keeper,Cashier,Service Advisor,Mechanic / Technician,Purchase Officer,Accountant,Customer Support,Branch Manager,Receptionist")]
 public class StaffCustomerController : ControllerBase
 {
     private readonly AppDbContext _context;

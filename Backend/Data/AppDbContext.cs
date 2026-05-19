@@ -23,6 +23,7 @@ namespace Backend.Data
         public DbSet<ServiceReview> ServiceReviews { get; set; } = null!;
         public DbSet<PurchaseInvoice> PurchaseInvoices { get; set; } = null!;
         public DbSet<PurchaseInvoiceItem> PurchaseInvoiceItems { get; set; } = null!;
+        public DbSet<AppNotification> AppNotifications { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -157,6 +158,19 @@ namespace Backend.Data
             modelBuilder.Entity<SaleItem>()
                 .Property(item => item.Price)
                 .HasColumnType("numeric(18,2)");
+
+            modelBuilder.Entity<AppNotification>(entity =>
+            {
+                entity.HasIndex(notification => notification.DedupeKey);
+                entity.HasIndex(notification => new { notification.Audience, notification.UserId, notification.IsDismissed });
+                entity.Property(notification => notification.Audience).HasMaxLength(20);
+                entity.Property(notification => notification.Type).HasMaxLength(40);
+                entity.Property(notification => notification.Title).HasMaxLength(160);
+                entity.Property(notification => notification.Message).HasMaxLength(1000);
+                entity.Property(notification => notification.LinkUrl).HasMaxLength(200);
+                entity.Property(notification => notification.DedupeKey).HasMaxLength(120);
+                entity.Property(notification => notification.ReferenceType).HasMaxLength(40);
+            });
         }
     }
 }

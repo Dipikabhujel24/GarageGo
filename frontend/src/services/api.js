@@ -72,6 +72,12 @@ export const deletePart = (id) =>
 
 export const getSalesCatalog = () => request('/sales/catalog');
 
+export const getSales = () => request('/sales');
+
+export const getSaleById = (id) => request(`/sales/${id}`);
+
+export const getCustomerSales = (customerId) => request(`/sales/customer/${customerId}`);
+
 export const createSale = (data) =>
   request('/sales', {
     method: 'POST',

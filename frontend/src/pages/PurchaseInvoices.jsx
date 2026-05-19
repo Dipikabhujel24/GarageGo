@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import SecureForm from '../components/SecureForm';
 import { getParts, getVendors } from '../services/api';
 import {
   createPurchaseInvoice,
@@ -287,7 +288,7 @@ function PurchaseInvoices() {
                 </div>
               )}
 
-              <form className="purchase-form" onSubmit={handleSubmit}>
+              <SecureForm className="purchase-form" onSubmit={handleSubmit} includePassword={false}>
                 <div className="purchase-form-grid">
                   <label className="inventory-field">
                     <span>Vendor</span>
@@ -415,7 +416,7 @@ function PurchaseInvoices() {
                     Reset
                   </button>
                 </div>
-              </form>
+              </SecureForm>
             </article>
 
             <article className="table-card card purchase-detail-card">
