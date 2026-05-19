@@ -20,6 +20,7 @@ export const navigationConfig = [
       { label: 'Invoices', path: '/staff/invoices', allowedRoles: ['Staff', 'Admin'] },
       { label: 'Inventory', path: '/staff/inventory', allowedRoles: ['Staff', 'Admin'] },
       { label: 'Reports', path: '/staff/reports', allowedRoles: ['Staff', 'Admin'] },
+      { label: 'Customer Reports', path: '/staff/customer-reports', allowedRoles: ['Staff', 'Admin'] },
     ],
   },
   {
