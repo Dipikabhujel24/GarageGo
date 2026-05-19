@@ -1,17 +1,17 @@
-import { getApiErrorMessage, readApiResponse } from '../config/api';
+import { API_BASE, getApiErrorMessage, readApiResponse } from '../config/api';
 import { getStoredToken } from '../utils/authSession';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = `${API_BASE}/api`;
 
 const request = async (path, options = {}) => {
-  const token = getStoredToken();
+  const token = getStoredToken() || localStorage.getItem('token') || '';
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
-    ...options,
   });
 
   const data = await readApiResponse(response);

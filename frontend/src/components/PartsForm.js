@@ -101,7 +101,7 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
       </label>
 
       <label className="inventory-field">
-        <span>Price</span>
+        <span>Price (Rs)</span>
         <input
           className="input-field"
           name="price"
