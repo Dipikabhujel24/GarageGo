@@ -1,10 +1,11 @@
 using Backend.Data;
-using Backend.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/staff-customers")]
+[Authorize(Roles = "Admin,Staff,Sales Staff,Inventory Staff,Store Keeper,Cashier,Service Advisor,Mechanic / Technician,Purchase Officer,Accountant,Customer Support,Branch Manager,Receptionist")]
 public class StaffCustomerController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -18,8 +19,9 @@ public class StaffCustomerController : ControllerBase
     public async Task<IActionResult> SearchCustomers([FromQuery] string? query)
     {
         var normalizedQuery = query?.Trim();
-        var customersQuery = _context.Customers
+        var customersQuery = _context.CustomerProfiles
             .AsNoTracking()
+            .Include(customer => customer.User)
             .Include(customer => customer.Vehicles)
             .AsQueryable();
 
@@ -27,13 +29,30 @@ public class StaffCustomerController : ControllerBase
         {
             var loweredQuery = normalizedQuery.ToLower();
             var isIdSearch = int.TryParse(normalizedQuery, out var customerId);
+            var isShortNumericSearch = isIdSearch && normalizedQuery.Length <= 4;
 
-            customersQuery = customersQuery.Where(customer =>
-                (isIdSearch && customer.Id == customerId) ||
-                customer.Name.ToLower().Contains(loweredQuery) ||
-                customer.Phone.ToLower().Contains(loweredQuery) ||
-                customer.Vehicles.Any(vehicle =>
-                    vehicle.VehicleNumber.ToLower().Contains(loweredQuery)));
+            if (isShortNumericSearch)
+            {
+                var exactCustomerExists = await customersQuery.AnyAsync(customer => customer.Id == customerId);
+
+                customersQuery = exactCustomerExists
+                    ? customersQuery.Where(customer => customer.Id == customerId)
+                    : customersQuery.Where(customer =>
+                        customer.Vehicles.Any(vehicle =>
+                            vehicle.VehicleNumber.ToLower().Contains(loweredQuery) ||
+                            vehicle.LicensePlate.ToLower().Contains(loweredQuery)));
+            }
+            else
+            {
+                customersQuery = customersQuery.Where(customer =>
+                    (isIdSearch && customer.Id == customerId) ||
+                    customer.Name.ToLower().Contains(loweredQuery) ||
+                    customer.Phone.ToLower().Contains(loweredQuery) ||
+                    (customer.User != null && customer.User.Email.ToLower().Contains(loweredQuery)) ||
+                    customer.Vehicles.Any(vehicle =>
+                        vehicle.VehicleNumber.ToLower().Contains(loweredQuery) ||
+                        vehicle.LicensePlate.ToLower().Contains(loweredQuery)));
+            }
         }
 
         var customers = await customersQuery
@@ -43,7 +62,7 @@ public class StaffCustomerController : ControllerBase
             {
                 customer.Id,
                 customer.Name,
-                customer.Email,
+                Email = customer.User == null ? customer.LegacyEmail : customer.User.Email,
                 customer.Phone,
                 customer.Address,
                 VehicleNumbers = customer.Vehicles
@@ -59,14 +78,15 @@ public class StaffCustomerController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetCustomerDetails(int id)
     {
-        var customer = await _context.Customers
+        var customer = await _context.CustomerProfiles
             .AsNoTracking()
+            .Include(existingCustomer => existingCustomer.User)
             .Where(existingCustomer => existingCustomer.Id == id)
             .Select(existingCustomer => new
             {
                 existingCustomer.Id,
                 existingCustomer.Name,
-                existingCustomer.Email,
+                Email = existingCustomer.User == null ? existingCustomer.LegacyEmail : existingCustomer.User.Email,
                 existingCustomer.Phone,
                 existingCustomer.Address,
                 existingCustomer.CreatedAt,
@@ -76,6 +96,7 @@ public class StaffCustomerController : ControllerBase
                     {
                         vehicle.Id,
                         vehicle.VehicleNumber,
+                        vehicle.LicensePlate,
                         vehicle.Make,
                         vehicle.Model,
                         vehicle.Year,

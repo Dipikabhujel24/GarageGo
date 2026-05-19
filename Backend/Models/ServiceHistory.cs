@@ -8,7 +8,7 @@ namespace Backend.Models
 
         [Required]
         public int CustomerId { get; set; }
-        public Customer Customer { get; set; } = null!;
+        public CustomerProfile Customer { get; set; } = null!;
 
         public int? VehicleId { get; set; }
         public CustomerVehicle? Vehicle { get; set; }
@@ -37,5 +37,8 @@ namespace Backend.Models
 
         [Required]
         public DateTime ServiceDate { get; set; }
+
+        // Timestamp when a payment reminder was last sent for overdue credit
+        public DateTime? ReminderSentAt { get; set; }
     }
 }

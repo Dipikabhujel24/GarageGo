@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
+import { clearAuthSession, getStoredToken, updateStoredAuthUser } from '../../utils/authSession';
+import SecureForm from '../SecureForm';
+import AiMaintenanceAlerts from './AiMaintenanceAlerts';
 import './CustomerModule.css';
 
 const initialForm = {
@@ -19,7 +22,7 @@ function CustomerProfile() {
   const [formData, setFormData] = useState(initialForm);
   const [profileMeta, setProfileMeta] = useState({ vehicleCount: 0, lastUpdated: '—' });
 
-  const token = localStorage.getItem('token');
+  const token = getStoredToken();
 
   const displayName = formData.name.trim() || 'Customer';
 
@@ -54,8 +57,7 @@ function CustomerProfile() {
         const data = await readApiResponse(response);
 
         if (response.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('customer');
+          clearAuthSession();
           navigate('/login');
           return;
         }
@@ -112,8 +114,7 @@ function CustomerProfile() {
       const data = await readApiResponse(response);
 
       if (response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('customer');
+        clearAuthSession();
         navigate('/login');
         return;
       }
@@ -122,13 +123,13 @@ function CustomerProfile() {
         throw new Error(getApiErrorMessage(data, 'Failed to update profile.'));
       }
 
-      if (data.customer) {
-        localStorage.setItem('customer', JSON.stringify(data.customer));
+      if (data.user) {
+        updateStoredAuthUser(data.user);
         setFormData({
-          name: data.customer.name || '',
-          email: data.customer.email || '',
-          phone: data.customer.phone || '',
-          address: data.customer.address || ''
+          name: data.user.name || '',
+          email: data.user.email || '',
+          phone: data.user.phone || '',
+          address: data.user.address || ''
         });
       }
 
@@ -183,7 +184,7 @@ function CustomerProfile() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="form-grid profile-form-grid">
+            <SecureForm onSubmit={handleSubmit} className="form-grid profile-form-grid" includePassword={false}>
               <div className="form-group">
                 <label htmlFor="name">Name</label>
                 <input id="name" name="name" value={formData.name} onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))} required />
@@ -218,7 +219,7 @@ function CustomerProfile() {
                   Back to Dashboard
                 </button>
               </div>
-            </form>
+            </SecureForm>
           </section>
 
           <aside className="customer-aside-panel">
@@ -240,6 +241,8 @@ function CustomerProfile() {
                 </div>
               </div>
             </div>
+
+            <AiMaintenanceAlerts compact />
 
             <div className="customer-aside-card customer-aside-card--soft">
               <h4>Tips</h4>

@@ -1,24 +1,45 @@
+import { API_BASE } from '../config/api';
 import { getStoredToken } from '../utils/authSession';
 
-const API_BASE_URL =
-  process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
+const API_BASE_URL = API_BASE;
 
 async function request(path, options = {}) {
-  const token = getStoredToken();
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-    ...options,
-  });
+  const token = getStoredToken() || localStorage.getItem('token') || '';
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    throw new Error(`Cannot connect to backend at ${API_BASE_URL}. Please start or restart the backend server.`);
+  }
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { message: text };
+    }
+  }
 
   if (!response.ok) {
-    throw new Error(data?.message || data?.title || 'Request failed.');
+    const fallbackMessages = {
+      401: 'Unauthorized. Please sign in again with an Admin or Staff account.',
+      403: 'Access denied. Your account role cannot open this page.',
+      404: 'API endpoint not found. Restart the backend so the latest routes are loaded.',
+      500: 'Server error while loading data. Check the backend console or runtime log.',
+    };
+
+    throw new Error(data?.message || data?.title || fallbackMessages[response.status] || `Request failed with status ${response.status}.`);
   }
 
   return data;
@@ -80,6 +101,14 @@ export async function downloadCustomerHistoryPdf(historyId) {
 
 export function getServiceTypes() {
   return request('/api/customer-features/service-types');
+}
+
+export function getMyRequests() {
+  return request('/api/customer-features/my-requests');
+}
+
+export function getAllRequests() {
+  return request('/api/customer-features/all-requests');
 }
 
 export function getMyVehicles() {

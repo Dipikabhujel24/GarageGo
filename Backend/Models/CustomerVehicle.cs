@@ -7,7 +7,7 @@ namespace Backend.Models
         public int Id { get; set; }
 
         public int CustomerId { get; set; }
-        public Customer Customer { get; set; } = null!;
+        public CustomerProfile Customer { get; set; } = null!;
 
         [Required]
         [MaxLength(50)]

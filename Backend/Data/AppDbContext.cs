@@ -21,6 +21,9 @@ namespace Backend.Data
         public DbSet<Appointment> Appointments { get; set; } = null!;
         public DbSet<UnavailablePartRequest> UnavailablePartRequests { get; set; } = null!;
         public DbSet<ServiceReview> ServiceReviews { get; set; } = null!;
+        public DbSet<PurchaseInvoice> PurchaseInvoices { get; set; } = null!;
+        public DbSet<PurchaseInvoiceItem> PurchaseInvoiceItems { get; set; } = null!;
+        public DbSet<AppNotification> AppNotifications { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -120,6 +123,34 @@ namespace Backend.Data
                 .Property(part => part.Price)
                 .HasColumnType("numeric(18,2)");
 
+            modelBuilder.Entity<PurchaseInvoice>(entity =>
+            {
+                entity.HasIndex(invoice => invoice.InvoiceNumber).IsUnique();
+                entity.Property(invoice => invoice.InvoiceNumber).HasMaxLength(50);
+                entity.Property(invoice => invoice.TotalAmount).HasColumnType("numeric(18,2)");
+
+                entity.HasOne(invoice => invoice.Vendor)
+                    .WithMany()
+                    .HasForeignKey(invoice => invoice.VendorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PurchaseInvoiceItem>(entity =>
+            {
+                entity.Property(item => item.UnitPrice).HasColumnType("numeric(18,2)");
+                entity.Property(item => item.SubTotal).HasColumnType("numeric(18,2)");
+
+                entity.HasOne(item => item.PurchaseInvoice)
+                    .WithMany(invoice => invoice.Items)
+                    .HasForeignKey(item => item.PurchaseInvoiceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(item => item.Part)
+                    .WithMany()
+                    .HasForeignKey(item => item.PartId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
             modelBuilder.Entity<Sale>()
                 .Property(sale => sale.TotalAmount)
                 .HasColumnType("numeric(18,2)");
@@ -127,6 +158,19 @@ namespace Backend.Data
             modelBuilder.Entity<SaleItem>()
                 .Property(item => item.Price)
                 .HasColumnType("numeric(18,2)");
+
+            modelBuilder.Entity<AppNotification>(entity =>
+            {
+                entity.HasIndex(notification => notification.DedupeKey);
+                entity.HasIndex(notification => new { notification.Audience, notification.UserId, notification.IsDismissed });
+                entity.Property(notification => notification.Audience).HasMaxLength(20);
+                entity.Property(notification => notification.Type).HasMaxLength(40);
+                entity.Property(notification => notification.Title).HasMaxLength(160);
+                entity.Property(notification => notification.Message).HasMaxLength(1000);
+                entity.Property(notification => notification.LinkUrl).HasMaxLength(200);
+                entity.Property(notification => notification.DedupeKey).HasMaxLength(120);
+                entity.Property(notification => notification.ReferenceType).HasMaxLength(40);
+            });
         }
     }
 }

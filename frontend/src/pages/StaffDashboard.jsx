@@ -6,9 +6,11 @@ import { loadStoredInvoices } from '../utils/invoiceStorage';
 const quickLinks = [
   { label: 'Customers', to: '/staff/customers', description: 'Search and manage customer records.' },
   { label: 'Sales', to: '/staff/sales', description: 'Create sales invoices and update stock.' },
+  { label: 'Sales History', to: '/staff/sales-history', description: 'Browse completed sales and loyalty discounts.' },
   { label: 'Invoices', to: '/staff/invoices', description: 'Review recent invoices and send email receipts.' },
   { label: 'Inventory', to: '/staff/inventory', description: 'Check parts stock and vendor coverage.' },
   { label: 'Reports', to: '/staff/reports', description: 'Review operational performance.' },
+  { label: 'Customer Reports', to: '/staff/customer-reports', description: 'Review regulars, high spenders, and pending credits.' },
 ];
 
 function StaffDashboard() {

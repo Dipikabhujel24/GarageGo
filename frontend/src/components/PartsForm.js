@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import SecureForm from './SecureForm';
+import { numberInputAutofillProps, textInputAutofillProps } from '../utils/formAutofill';
 
 const initialForm = {
   partName: '',
@@ -69,7 +71,7 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
   };
 
   return (
-    <form className="inventory-form-grid" onSubmit={handleSubmit}>
+    <SecureForm className="inventory-form-grid" onSubmit={handleSubmit} includePassword={false}>
       {error && (
         <div className="message-banner error inventory-form-error inventory-span-two">
           {error}
@@ -85,6 +87,7 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           onChange={handleChange}
           placeholder="Enter part name"
           required
+          {...textInputAutofillProps}
         />
       </label>
 
@@ -97,11 +100,12 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           onChange={handleChange}
           placeholder="Engine, tires, electrical"
           required
+          {...textInputAutofillProps}
         />
       </label>
 
       <label className="inventory-field">
-        <span>Price</span>
+        <span>Price (Rs)</span>
         <input
           className="input-field"
           name="price"
@@ -112,6 +116,7 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           onChange={handleChange}
           placeholder="0.00"
           required
+          {...numberInputAutofillProps}
         />
       </label>
 
@@ -126,6 +131,7 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           onChange={handleChange}
           placeholder="Available stock"
           required
+          {...numberInputAutofillProps}
         />
       </label>
 
@@ -137,6 +143,7 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           value={form.vendorId}
           onChange={handleChange}
           required
+          autoComplete="off"
         >
           <option value="">Select vendor</option>
           {vendors.map((vendor) => (
@@ -156,6 +163,7 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           onChange={handleChange}
           placeholder="Notes, fitment, or reorder details"
           rows="3"
+          autoComplete="off"
         />
       </label>
 
@@ -179,7 +187,7 @@ function PartsForm({ vendors, selectedPart, onCancelEdit, onCreate, onUpdate }) 
           {isSubmitting ? 'Saving...' : isEditing ? 'Update Part' : 'Add Part'}
         </button>
       </div>
-    </form>
+    </SecureForm>
   );
 }
 

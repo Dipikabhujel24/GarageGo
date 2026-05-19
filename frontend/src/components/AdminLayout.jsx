@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import NotificationBell from './NotificationBell';
 import { clearAuthSession, getStoredAuthUser } from '../utils/authSession';
 
 function getPageTitle(pathname) {
@@ -13,7 +14,11 @@ function getPageTitle(pathname) {
   }
 
   if (pathname === '/staff/sales' || pathname === '/staff/invoices/create') {
-    return 'Sales';
+    return 'Sales Checkout';
+  }
+
+  if (pathname === '/staff/sales-history') {
+    return 'Sales History';
   }
 
   if (pathname === '/staff/invoices') {
@@ -48,8 +53,32 @@ function getPageTitle(pathname) {
     return 'Staff Management';
   }
 
+  if (pathname === '/appointments') {
+    return 'Appointments';
+  }
+
+  if (pathname === '/part-requests') {
+    return 'Request Unavailable Part';
+  }
+
+  if (pathname === '/reviews') {
+    return 'Reviews & Ratings';
+  }
+
   if (pathname.includes('/requests')) {
-    return 'Requests & Appointments';
+    return 'Appointments';
+  }
+
+  if (pathname.includes('/appointments-management')) {
+    return 'Appointments Management';
+  }
+
+  if (pathname.includes('/part-requests')) {
+    return 'Part Requests';
+  }
+
+  if (pathname.includes('/service-reviews')) {
+    return 'Service Reviews';
   }
 
   if (pathname.includes('customers')) {
@@ -66,6 +95,10 @@ function getPageTitle(pathname) {
 
   if (pathname.includes('parts')) {
     return 'Parts Management';
+  }
+
+  if (pathname.includes('purchase-invoices')) {
+    return 'Purchase Invoices';
   }
 
   if (pathname.includes('reports')) {
@@ -109,6 +142,7 @@ function AdminLayout() {
             </div>
           </div>
           <div className="app-topbar-actions">
+            <NotificationBell />
             <span className="app-topbar-user">Signed in as {userLabel}</span>
             <button className="app-topbar-action" type="button" onClick={handleLogout}>
               Sign out
@@ -117,7 +151,7 @@ function AdminLayout() {
         </header>
 
         <main className="app-content">
-          <Outlet />
+          <Outlet key={location.key} />
         </main>
       </div>
     </div>
