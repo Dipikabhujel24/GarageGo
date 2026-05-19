@@ -21,6 +21,8 @@ namespace Backend.Data
         public DbSet<Appointment> Appointments { get; set; } = null!;
         public DbSet<UnavailablePartRequest> UnavailablePartRequests { get; set; } = null!;
         public DbSet<ServiceReview> ServiceReviews { get; set; } = null!;
+        public DbSet<PurchaseInvoice> PurchaseInvoices { get; set; } = null!;
+        public DbSet<PurchaseInvoiceItem> PurchaseInvoiceItems { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -115,6 +117,34 @@ namespace Backend.Data
             modelBuilder.Entity<Part>()
                 .Property(part => part.Price)
                 .HasColumnType("numeric(18,2)");
+
+            modelBuilder.Entity<PurchaseInvoice>(entity =>
+            {
+                entity.HasIndex(invoice => invoice.InvoiceNumber).IsUnique();
+                entity.Property(invoice => invoice.InvoiceNumber).HasMaxLength(50);
+                entity.Property(invoice => invoice.TotalAmount).HasColumnType("numeric(18,2)");
+
+                entity.HasOne(invoice => invoice.Vendor)
+                    .WithMany()
+                    .HasForeignKey(invoice => invoice.VendorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PurchaseInvoiceItem>(entity =>
+            {
+                entity.Property(item => item.UnitPrice).HasColumnType("numeric(18,2)");
+                entity.Property(item => item.SubTotal).HasColumnType("numeric(18,2)");
+
+                entity.HasOne(item => item.PurchaseInvoice)
+                    .WithMany(invoice => invoice.Items)
+                    .HasForeignKey(item => item.PurchaseInvoiceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(item => item.Part)
+                    .WithMany()
+                    .HasForeignKey(item => item.PartId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
             modelBuilder.Entity<Sale>()
                 .Property(sale => sale.TotalAmount)
