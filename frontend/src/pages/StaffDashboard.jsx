@@ -9,6 +9,7 @@ const quickLinks = [
   { label: 'Invoices', to: '/staff/invoices', description: 'Review recent invoices and send email receipts.' },
   { label: 'Inventory', to: '/staff/inventory', description: 'Check parts stock and vendor coverage.' },
   { label: 'Reports', to: '/staff/reports', description: 'Review operational performance.' },
+  { label: 'Customer Reports', to: '/staff/customer-reports', description: 'Review regulars, high spenders, and pending credits.' },
 ];
 
 function StaffDashboard() {
