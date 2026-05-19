@@ -1,7 +1,7 @@
 import axios from 'axios';
+import { API_BASE } from '../config/api';
 
-const REPORTS_API_BASE_URL =
-  process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
+const REPORTS_API_BASE_URL = API_BASE;
 
 const reportsApi = axios.create({
   baseURL: `${REPORTS_API_BASE_URL}/api/reports`,
@@ -51,5 +51,20 @@ export async function getMonthlyReports() {
 
 export async function getYearlyReports() {
   const response = await reportsApi.get('/yearly');
+  return response.data;
+}
+
+export async function getRegularCustomerReports() {
+  const response = await reportsApi.get('/customers/regulars');
+  return response.data;
+}
+
+export async function getHighSpenderCustomerReports() {
+  const response = await reportsApi.get('/customers/high-spenders');
+  return response.data;
+}
+
+export async function getPendingCreditCustomerReports() {
+  const response = await reportsApi.get('/customers/pending-credits');
   return response.data;
 }
