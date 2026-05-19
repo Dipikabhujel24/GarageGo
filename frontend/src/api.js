@@ -2,8 +2,16 @@ import axios from "axios";
 
 const API = "https://localhost:7206/api";
 
-export const createSale = (data) => {
-  return axios.post(`${API}/sales`, data);
+export const createSale = async (data) => {
+  console.debug("createSale request:", data);
+  try {
+    const resp = await axios.post(`${API}/sales`, data);
+    console.debug("createSale response:", resp?.data);
+    return resp;
+  } catch (err) {
+    console.error("createSale error:", err?.response ?? err);
+    throw err;
+  }
 };
 
 export const getSales = () => {

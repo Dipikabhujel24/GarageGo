@@ -20,6 +20,11 @@ function SalesPage({ onInvoiceCreated }) {
 
   const total = subtotal - discount;
   const loyaltyPoints = Math.floor(total / 100);
+  const [redeemPoints, setRedeemPoints] = useState(false);
+
+  const loyaltyValue = loyaltyPoints; // 1 point = Rs.1
+  const loyaltyDiscount = redeemPoints ? Math.min(loyaltyValue, Math.floor(total)) : 0;
+  const finalAmount = total - loyaltyDiscount;
 
   // ✅ Add item manually
   const handleAddToCart = () => {
@@ -93,12 +98,28 @@ function SalesPage({ onInvoiceCreated }) {
       const salePayload = {
         customerId: parsedCustomerId,
         loyaltyPoints,
+        redeemedPoints: redeemPoints ? loyaltyPoints : 0,
+        loyaltyDiscount: loyaltyDiscount,
         items: cartItems.map((item) => ({
           partId: item.partId,
           quantity: item.quantity,
           price: item.price
         }))
       };
+
+      // Validate items have prices to avoid sending price=0 to backend
+      const invalid = salePayload.items.find(
+        (it) => typeof it.price !== 'number' || Number(it.price) <= 0
+      );
+
+      if (invalid) {
+        alert('One or more cart items are missing a valid price. Please check the cart before submitting.');
+        console.error('Invalid sale payload:', salePayload);
+        return;
+      }
+
+      // Helpful debug log for developers
+      console.debug('Submitting sale payload:', salePayload);
 
       const response = await createSale(salePayload);
 
@@ -111,8 +132,10 @@ function SalesPage({ onInvoiceCreated }) {
           price: item.price,
           lineTotal: item.quantity * item.price
         })),
-        total,
+        total: finalAmount,
         loyaltyPoints,
+        redeemedPoints: redeemPoints ? loyaltyPoints : 0,
+        loyaltyDiscount,
         date: new Date().toLocaleDateString(),
         saleId: response?.data?.saleId ?? response?.data?.id ?? null
       };
@@ -248,9 +271,28 @@ function SalesPage({ onInvoiceCreated }) {
                 </div>
               )}
               <div className="cart-total">
+                <span>Loyalty Points Earned:</span>
+                <span className="total-amount">{loyaltyPoints}</span>
+              </div>
+
+              {loyaltyPoints > 0 && (
+                <div className="loyalty-redeem" style={{padding: '8px 0'}}>
+                  <label style={{cursor: 'pointer'}}>
+                    <input
+                      type="checkbox"
+                      checked={redeemPoints}
+                      onChange={() => setRedeemPoints(!redeemPoints)}
+                      style={{marginRight: 8}}
+                    />
+                    Redeem points (-{formatCurrency(loyaltyDiscount)})
+                  </label>
+                </div>
+              )}
+
+              <div className="cart-total">
                 <span>Final Amount:</span>
                 <span className="total-amount">
-                  {formatCurrency(total)}
+                  {formatCurrency(finalAmount)}
                 </span>
               </div>
             </>
@@ -262,9 +304,6 @@ function SalesPage({ onInvoiceCreated }) {
           <h2>Section 4: Submit Sale</h2>
           <p className="submit-prompt">Ready to complete this sale?</p>
           <div className="button-group">
-            <button onClick={handleClearSale} className="btn-secondary">
-              Save Sale
-            </button>
             <button onClick={handleSubmit} className="btn-primary">
               Generate Invoice
             </button>
