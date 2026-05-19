@@ -11,7 +11,7 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Staff")]
+    [Authorize(Roles = "Admin,Staff,Sales Staff")]
     public class SalesController : ControllerBase
     {
         private readonly AppDbContext _context;

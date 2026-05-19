@@ -4,13 +4,30 @@ import {
   deleteStaff,
   extractApiErrorMessage,
   getStaff,
+  getStaffActivity,
   updateStaff,
+  updateStaffStatus,
 } from '../services/staffService';
+
+const GARAGE_STAFF_ROLES = [
+  'Sales Staff',
+  'Inventory Staff',
+  'Store Keeper',
+  'Cashier',
+  'Service Advisor',
+  'Mechanic / Technician',
+  'Purchase Officer',
+  'Accountant',
+  'Customer Support',
+  'Branch Manager',
+];
 
 const initialFormState = {
   name: '',
   email: '',
   password: '',
+  role: 'Sales Staff',
+  status: 'Active',
 };
 
 function resolveStaffId(staffMember) {
@@ -90,6 +107,43 @@ function StaffForm({
       </div>
 
       <div className="form-group">
+        <label className="form-label" htmlFor="role">
+          Role
+        </label>
+        <select
+          id="role"
+          name="role"
+          className="input-field staff-role-select"
+          value={formData.role}
+          onChange={onFieldChange}
+          disabled={isSubmitting || isDeleting}
+        >
+          {GARAGE_STAFF_ROLES.map((role) => (
+            <option key={role} value={role}>
+              {role}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label" htmlFor="status">
+          Status
+        </label>
+        <select
+          id="status"
+          name="status"
+          className="input-field"
+          value={formData.status}
+          onChange={onFieldChange}
+          disabled={isSubmitting || isDeleting}
+        >
+          <option value="Active">Active</option>
+          <option value="Disabled">Disabled</option>
+        </select>
+      </div>
+
+      <div className="form-group">
         <label className="form-label" htmlFor="password">
           Password
         </label>
@@ -155,6 +209,7 @@ function StaffTable({
   isDeleting,
   onEdit,
   onDelete,
+  onToggleStatus,
 }) {
   if (isLoading) {
     return <p className="status-text">Loading...</p>;
@@ -168,13 +223,14 @@ function StaffTable({
             <th>Name</th>
             <th>Email</th>
             <th>Role</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {staffList.length === 0 ? (
             <tr>
-              <td colSpan="4" className="empty-state">
+              <td colSpan="5" className="empty-state">
                 No staff found.
               </td>
             </tr>
@@ -187,6 +243,7 @@ function StaffTable({
                   <td>{staffMember.name}</td>
                   <td>{staffMember.email}</td>
                   <td>{staffMember.role}</td>
+                  <td>{staffMember.status || 'Active'}</td>
                   <td>
                     <div className="button-group">
                       <button
@@ -196,6 +253,14 @@ function StaffTable({
                         disabled={isSubmitting || isDeleting}
                       >
                         Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() => onToggleStatus(staffMember)}
+                        disabled={isSubmitting || isDeleting}
+                      >
+                        {staffMember.status === 'Disabled' ? 'Enable' : 'Disable'}
                       </button>
                       <button
                         type="button"
@@ -220,6 +285,7 @@ function StaffTable({
 function StaffManagement() {
   // --- state: data & UI flags ---
   const [staffList, setStaffList] = useState([]);
+  const [activityList, setActivityList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   // --- state: form ---
@@ -260,7 +326,9 @@ function StaffManagement() {
     setIsLoading(true);
     try {
       const staffResponse = await getStaff();
+      const activityResponse = await getStaffActivity();
       setStaffList(normalizeStaffResponse(staffResponse));
+      setActivityList(normalizeStaffResponse(activityResponse));
     } catch (error) {
       setMessage(
         extractApiErrorMessage(error, 'Failed to load staff. Please try again.')
@@ -322,6 +390,8 @@ function StaffManagement() {
     const staffPayload = {
       name: formData.name.trim(),
       email: formData.email.trim(),
+      role: formData.role,
+      status: formData.status,
     };
 
     // Only send password during create or when it is explicitly changed during edit.
@@ -365,9 +435,40 @@ function StaffManagement() {
       name: staffMember.name ?? '',
       email: staffMember.email ?? '',
       password: '',
+      role: staffMember.role === 'Staff' ? 'Sales Staff' : staffMember.role ?? 'Sales Staff',
+      status: staffMember.status ?? 'Active',
     });
     setMessage('Editing mode enabled. Update details and click Save Changes.');
     setMessageType('success');
+  };
+
+  const handleToggleStatus = async (staffMember) => {
+    const staffId = resolveStaffId(staffMember);
+
+    if (staffId === undefined || staffId === null) {
+      setMessage('Unable to update this record because the staff id is missing.');
+      setMessageType('error');
+      return;
+    }
+
+    const nextStatus = staffMember.status === 'Disabled' ? 'Active' : 'Disabled';
+    setIsSubmitting(true);
+    setMessage('');
+    setMessageType('');
+
+    try {
+      await updateStaffStatus(staffId, nextStatus);
+      setMessage(`Staff member ${nextStatus === 'Disabled' ? 'disabled' : 'enabled'} successfully.`);
+      setMessageType('success');
+      await loadStaffList();
+    } catch (error) {
+      setMessage(
+        extractApiErrorMessage(error, 'Unable to update staff status right now.')
+      );
+      setMessageType('error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = async (staffMember) => {
@@ -464,9 +565,54 @@ function StaffManagement() {
             isDeleting={isDeleting}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onToggleStatus={handleToggleStatus}
           />
         </div>
       </div>
+
+      <article className="table-card card staff-activity-card">
+        <div className="table-card-header">
+          <div>
+            <h3 className="staff-card-title card-title">Staff Activity</h3>
+            <p className="section-copy staff-directory-copy">
+              Recent account status and role activity from staff records.
+            </p>
+          </div>
+        </div>
+
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Staff</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Activity</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activityList.length === 0 ? (
+                <tr>
+                  <td className="empty-state" colSpan="5">
+                    No staff activity found.
+                  </td>
+                </tr>
+              ) : (
+                activityList.map((activity) => (
+                  <tr key={`${activity.staffId}-${activity.email}`}>
+                    <td>{activity.name}</td>
+                    <td>{activity.role}</td>
+                    <td>{activity.status}</td>
+                    <td>{activity.activity}</td>
+                    <td>{activity.occurredAt ? new Date(activity.occurredAt).toLocaleDateString() : '-'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </article>
     </section>
   );
 }

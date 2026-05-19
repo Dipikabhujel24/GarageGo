@@ -18,28 +18,126 @@ body {
 
 .app-sidebar {
   width: 270px;
-  padding: 18px 16px;
+  padding: 20px 16px 16px;
   background: linear-gradient(180deg, var(--primary-start), var(--primary-end));
   color: var(--white);
   border-right: 1px solid rgba(255, 255, 255, 0.14);
-  display: grid;
-  gap: 18px;
-  min-height: 100vh;
-  box-sizing: border-box;
-}
-
-.app-sidebar {
   display: flex;
   flex-direction: column;
+  gap: 18px;
   justify-content: flex-start;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 
 .brand-block {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
   justify-content: space-between;
+  gap: 14px;
+  min-height: 56px;
+  padding: 4px 4px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand-lockup > div:last-child {
+  min-width: 0;
+}
+
+.brand-avatar {
+  flex: 0 0 auto;
+}
+
+.avatar-placeholder {
+  width: 44px;
+  height: 44px;
+  background: rgba(255,255,255,0.95);
+  color: var(--primary-end);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.sidebar-footer {
+  padding: 12px 4px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-footer small {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.mobile-close {
+  display: none;
+}
+
+.mobile-toggle {
+  display: none;
+}
+
+.brand-title {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+  font-weight: 800;
+}
+
+.brand-subtitle {
+  margin: 2px 0 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.78rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 4px 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
+}
+
+.sidebar-nav-group {
+  display: grid;
+  gap: 7px;
+}
+
+.sidebar-nav-group + .sidebar-nav-group {
+  padding-top: 2px;
+}
+
+.sidebar-nav-title {
+  margin: 0 0 1px;
+  padding: 0 10px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-nav-items {
+  display: grid;
+  gap: 6px;
 }
 
 .brand-dot {
@@ -50,83 +148,30 @@ body {
   box-shadow: 0 0 0 6px rgba(173, 216, 230, 0.12);
 }
 
-.brand-title {
-  margin: 0;
-  font-size: 1rem;
-  letter-spacing: 0.4px;
-  font-weight: 700;
-}
-
-.brand-subtitle {
-  margin: 2px 0 0;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 0.8rem;
-}
-
-.sidebar-nav {
-  display: block;
-  gap: 10px;
-  align-content: start;
-  grid-auto-rows: min-content;
-  flex: 1 1 auto;
-  overflow: auto;
-  padding-right: 6px;
-}
-
-.sidebar-nav-group {
-  display: grid;
-  gap: 8px;
-}
-
-.sidebar-nav-title {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.sidebar-nav-items {
-  display: grid;
-  gap: 10px;
-}
-
-.brand-avatar { margin-top: 12px; }
-.avatar-placeholder {
-  width: 48px;
-  height: 48px;
-  background: rgba(255,255,255,0.95);
-  color: var(--primary-end);
+.nav-item {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-weight: 800;
-  font-size: 0.9rem;
-}
-
-.sidebar-footer { padding: 12px 0 6px; }
-
-.nav-item {
-  display: block;
+  min-height: 40px;
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
   padding: 9px 12px;
   border-radius: 10px;
+  line-height: 1.25;
+  font-size: 0.92rem;
   font-weight: 600;
-  transition: all 0.2s ease;
+  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .nav-item:hover {
-  background-color: rgba(173, 216, 230, 0.28);
+  background-color: rgba(173, 216, 230, 0.18);
   color: var(--white);
 }
 
 .nav-item-active {
-  background: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.14);
   color: var(--white);
-  box-shadow: inset 6px 0 0 rgba(255,255,255,0.06);
+  box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.52);
 }
 
 .app-main {
@@ -145,10 +190,6 @@ body {
   border-bottom: 1px solid var(--border);
   background-color: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(4px);
-}
-
-.mobile-toggle {
-  display: none;
 }
 
 .app-topbar-label {
@@ -379,6 +420,10 @@ body {
   align-items: start;
 }
 
+.staff-activity-card {
+  margin-top: 18px;
+}
+
 .staff-form {
   background-color: var(--card-bg);
   border: 1px solid var(--border);
@@ -401,6 +446,10 @@ body {
 
 .staff-search-wrap {
   min-width: min(100%, 320px);
+}
+
+.staff-role-select {
+  min-height: 42px;
 }
 
 .staff-card-title {
@@ -719,6 +768,7 @@ textarea.input-field {
     top: 0;
     z-index: 30;
     width: 100%;
+    min-height: auto;
     padding: 14px 16px;
     gap: 12px;
     border-right: 0;
@@ -726,6 +776,9 @@ textarea.input-field {
   }
 
   .brand-block {
+    min-height: 0;
+    padding: 0;
+    border-bottom: 0;
     margin-bottom: 0;
     justify-content: flex-start;
   }
@@ -737,7 +790,8 @@ textarea.input-field {
     gap: 14px;
     overflow-x: auto;
     align-content: start;
-    padding-bottom: 2px;
+    min-height: 0;
+    padding: 0 0 2px;
   }
 
   .app-main {
@@ -776,7 +830,8 @@ textarea.input-field {
   .nav-item {
     white-space: nowrap;
     flex: 0 0 auto;
-    padding: 10px 14px;
+    min-height: 38px;
+    padding: 9px 14px;
   }
 
   .app-topbar {
@@ -835,7 +890,8 @@ textarea.input-field {
     top: 0;
     height: 100%;
     width: 260px;
-    padding: 18px 12px;
+    min-height: 100vh;
+    padding: 20px 14px 16px;
     border-right: 1px solid rgba(255,255,255,0.14);
     box-shadow: 8px 0 30px rgba(7, 15, 30, 0.5);
     transition: left 0.22s ease;
@@ -845,6 +901,45 @@ textarea.input-field {
 
   .app-sidebar.mobile-open {
     left: 0;
+  }
+
+  .app-sidebar .brand-block {
+    min-height: 56px;
+    padding: 4px 4px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    justify-content: space-between;
+  }
+
+  .app-sidebar .sidebar-nav {
+    display: grid;
+    gap: 16px;
+    align-content: start;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 4px 4px 0;
+  }
+
+  .app-sidebar .sidebar-nav-group {
+    display: grid;
+    gap: 7px;
+  }
+
+  .app-sidebar .sidebar-nav-title {
+    display: block;
+  }
+
+  .app-sidebar .sidebar-nav-items {
+    display: grid;
+    gap: 6px;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .app-sidebar .nav-item {
+    white-space: normal;
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 12px;
   }
 
   .mobile-toggle {
@@ -861,6 +956,9 @@ textarea.input-field {
   }
 
   .mobile-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     position: absolute;
     right: 12px;
     top: 12px;

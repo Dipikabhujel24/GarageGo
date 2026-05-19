@@ -64,6 +64,10 @@ function getPageTitle(pathname) {
     return 'Parts Management';
   }
 
+  if (pathname.includes('purchase-invoices')) {
+    return 'Purchase Invoices';
+  }
+
   if (pathname.includes('reports')) {
     return 'Reports';
   }

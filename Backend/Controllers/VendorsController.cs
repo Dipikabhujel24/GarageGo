@@ -9,7 +9,7 @@ namespace Backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin,Staff")]
+    [Authorize(Roles = "Admin,Staff,Sales Staff,Inventory Staff,Receptionist,Accountant")]
     public class VendorsController : ControllerBase
     {
         private readonly AppDbContext _context;

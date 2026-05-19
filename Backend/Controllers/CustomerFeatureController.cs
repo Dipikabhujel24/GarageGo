@@ -37,7 +37,7 @@ public class CustomerFeatureController : ControllerBase
         return Ok(ServiceTypeOptions);
     }
 
-    [Authorize(Roles = "Staff")]
+    [Authorize(Roles = "Admin,Staff,Sales Staff,Receptionist")]
     [HttpGet("{customerId:int}/vehicles")]
     public async Task<IActionResult> GetVehicles(int customerId)
     {
@@ -60,7 +60,7 @@ public class CustomerFeatureController : ControllerBase
         return Ok(vehicles);
     }
 
-    [Authorize(Roles = "Staff")]
+    [Authorize(Roles = "Admin,Staff,Sales Staff,Receptionist")]
     [HttpGet("{customerId:int}/service-history")]
     public async Task<IActionResult> GetServiceHistory(int customerId)
     {

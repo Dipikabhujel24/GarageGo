@@ -10,7 +10,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen }) {
   return (
     <aside className={`app-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
       <div className="brand-block">
-        <div style={{display:'flex',alignItems:'center',gap:12}}>
+        <div className="brand-lockup">
           <div className="brand-dot" />
           <div>
             <p className="brand-title">GarageGo</p>
@@ -54,7 +54,7 @@ function Sidebar({ sidebarOpen, setSidebarOpen }) {
       </nav>
 
       <div className="sidebar-footer">
-        <small style={{ color: 'rgba(255,255,255,0.65)' }}>v1.0</small>
+        <small>v1.0</small>
       </div>
     </aside>
   );

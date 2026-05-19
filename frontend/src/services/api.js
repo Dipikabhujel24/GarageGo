@@ -3,7 +3,7 @@ import { getStoredToken } from '../utils/authSession';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
-const request = async (path, options = {}) => {
+export const request = async (path, options = {}) => {
   const token = getStoredToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {

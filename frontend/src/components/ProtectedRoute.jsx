@@ -1,5 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
+import { garageStaffRoles, isRoleAllowed } from '../config/roleBasedNav';
 import { getStoredAuthUser } from '../utils/authSession';
 
 /**
@@ -20,14 +21,17 @@ const ProtectedRoute = ({
   }
 
   // Logged in but role not allowed
-  if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+  if (allowedRoles.length > 0 && !isRoleAllowed(userRole, allowedRoles)) {
     // Redirect to their own role's dashboard
     const dashboardMap = {
       'Admin': '/admin/dashboard',
       'Staff': '/staff/dashboard',
       'Customer': '/dashboard',
     };
-    return <Navigate to={dashboardMap[userRole] || '/dashboard'} replace />;
+    const fallbackDashboard = garageStaffRoles.includes(userRole)
+      ? '/staff/dashboard'
+      : '/dashboard';
+    return <Navigate to={dashboardMap[userRole] || fallbackDashboard} replace />;
   }
 
   return children;

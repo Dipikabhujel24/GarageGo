@@ -54,7 +54,7 @@ function RevenueChart() {
                 boxShadow: '0 12px 24px rgba(42, 82, 152, 0.12)',
               }}
               labelStyle={{ color: '#1F2A44', fontWeight: 700 }}
-              formatter={(value) => [`$${formatNumber(value)}`, 'Revenue']}
+              formatter={(value) => [`Rs${formatNumber(value)}`, 'Revenue']}
             />
             <Line
               type="monotone"

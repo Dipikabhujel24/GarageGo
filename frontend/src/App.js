@@ -23,6 +23,7 @@ import StaffSalesPage from "./pages/StaffSalesPage";
 import Reports from "./pages/Reports";
 import StaffManagement from "./pages/StaffManagement";
 import VendorManagement from "./pages/VendorManagement";
+import PurchaseInvoices from "./pages/PurchaseInvoices";
 
 import "./App.css";
 import "./styles/theme.css";
@@ -228,6 +229,14 @@ function App() {
                 <PartsManagement />
               </ProtectedRoute>
             } 
+          />
+          <Route
+            path="admin/purchase-invoices"
+            element={
+              <ProtectedRoute allowedRoles={['Admin']}>
+                <PurchaseInvoices />
+              </ProtectedRoute>
+            }
           />
           <Route 
             path="admin/reports" 

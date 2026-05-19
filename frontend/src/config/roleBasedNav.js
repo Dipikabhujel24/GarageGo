@@ -39,11 +39,29 @@ export const navigationConfig = [
       { label: 'Inventory Overview', path: '/admin/inventory', allowedRoles: ['Admin'] },
       { label: 'Vendors', path: '/admin/vendors', allowedRoles: ['Admin'] },
       { label: 'Parts', path: '/admin/parts', allowedRoles: ['Admin'] },
+      { label: 'Purchase Invoices', path: '/admin/purchase-invoices', allowedRoles: ['Admin'] },
       { label: 'Staff Management', path: '/admin/staff-management', allowedRoles: ['Admin'] },
       { label: 'Reports', path: '/admin/reports', allowedRoles: ['Admin'] },
     ],
   },
 ];
+
+export const garageStaffRoles = [
+  'Staff',
+  'Sales Staff',
+  'Inventory Staff',
+  'Receptionist',
+  'Accountant',
+];
+
+export const isRoleAllowed = (role, allowedRoles = []) => {
+  if (!role || allowedRoles.length === 0) {
+    return false;
+  }
+
+  return allowedRoles.includes(role) ||
+    (allowedRoles.includes('Staff') && garageStaffRoles.includes(role));
+};
 
 /**
  * Get filtered nav items for a specific role
@@ -54,7 +72,7 @@ export const getFilteredNav = (role) => {
   return navigationConfig.map(group => ({
     title: group.title,
     items: group.items.filter(item => 
-      item.allowedRoles && item.allowedRoles.includes(role)
+      item.allowedRoles && isRoleAllowed(role, item.allowedRoles)
     ),
   })).filter(group => group.items.length > 0);
 };
@@ -66,10 +84,9 @@ export const getDashboardPathForRole = (role) => {
   switch (role) {
     case 'Admin':
       return '/admin/dashboard';
-    case 'Staff':
-      return '/staff/dashboard';
     case 'Customer':
-    default:
       return '/dashboard';
+    default:
+      return garageStaffRoles.includes(role) ? '/staff/dashboard' : '/dashboard';
   }
 };

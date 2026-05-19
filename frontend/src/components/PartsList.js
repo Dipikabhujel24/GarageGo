@@ -29,7 +29,7 @@ function PartsList({ parts, onEdit, onDelete }) {
               </td>
               <td>{part.category}</td>
               <td>{part.vendor?.vendorName || 'Unknown'}</td>
-              <td>${Number(part.price).toFixed(2)}</td>
+              <td>Rs{Number(part.price).toFixed(2)}</td>
               <td>
                 <span
                   className={

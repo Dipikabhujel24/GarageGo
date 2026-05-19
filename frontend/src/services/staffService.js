@@ -54,6 +54,16 @@ export async function updateStaff(staffId, payload) {
   return response.data;
 }
 
+export async function updateStaffStatus(staffId, status) {
+  const response = await staffApi.patch(`/${staffId}/status`, { status });
+  return response.data;
+}
+
+export async function getStaffActivity() {
+  const response = await staffApi.get('/activity');
+  return response.data;
+}
+
 export async function deleteStaff(staffId) {
   await staffApi.delete(`/${staffId}`);
 }

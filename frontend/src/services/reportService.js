@@ -53,3 +53,18 @@ export async function getYearlyReports() {
   const response = await reportsApi.get('/yearly');
   return response.data;
 }
+
+export async function getSalesTrends() {
+  const response = await reportsApi.get('/sales-trends');
+  return response.data;
+}
+
+export async function getTopSellingParts() {
+  const response = await reportsApi.get('/top-selling-parts');
+  return response.data;
+}
+
+export async function getDashboardMetrics() {
+  const response = await reportsApi.get('/dashboard-metrics');
+  return response.data;
+}
