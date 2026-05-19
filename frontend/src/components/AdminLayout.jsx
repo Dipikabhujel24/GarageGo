@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 import { clearAuthSession, getStoredAuthUser } from '../utils/authSession';
+import { isRoleAllowed } from '../config/roleBasedNav';
 
 function getPageTitle(pathname) {
   if (pathname === '/dashboard') {
@@ -114,6 +115,7 @@ function AdminLayout() {
   const currentPageTitle = getPageTitle(location.pathname);
   const user = getStoredAuthUser();
   const userLabel = user?.name || 'Guest user';
+  const showNotifications = user?.role && !isRoleAllowed(user.role, ['Staff']);
 
   const handleLogout = () => {
     clearAuthSession();
@@ -142,7 +144,7 @@ function AdminLayout() {
             </div>
           </div>
           <div className="app-topbar-actions">
-            <NotificationBell />
+            {showNotifications ? <NotificationBell /> : null}
             <span className="app-topbar-user">Signed in as {userLabel}</span>
             <button className="app-topbar-action" type="button" onClick={handleLogout}>
               Sign out

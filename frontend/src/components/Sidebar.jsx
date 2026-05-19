@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { getFilteredSidebarNav, isPathActive } from '../config/roleBasedNav';
 import { getStoredAuthUser } from '../utils/authSession';
+import BrandLogo from './BrandLogo';
 import SidebarNavAccordion from './SidebarNavAccordion';
 import SidebarNavIcon from './SidebarNavIcon';
 
@@ -18,18 +19,8 @@ function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
   return (
     <aside className={`app-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
-      <div className="brand-block">
-        <div className="brand-lockup">
-          <div className="brand-dot" />
-          <div>
-            <p className="brand-title">GarageGo</p>
-            <p className="brand-subtitle">Unified Workspace</p>
-          </div>
-        </div>
-
-        <div className="brand-avatar" aria-hidden>
-          <div className="avatar-placeholder">GG</div>
-        </div>
+      <div className="brand-block brand-block--logo">
+        <BrandLogo variant="sidebar" showSubtitle subtitle="Unified Workspace" />
       </div>
 
       <button

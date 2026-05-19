@@ -55,7 +55,7 @@ public class StaffCustomerController : ControllerBase
             }
         }
 
-        var customers = await customersQuery
+        var customerRows = await customersQuery
             .OrderBy(customer => customer.Name)
             .Take(50)
             .Select(customer => new
@@ -65,12 +65,47 @@ public class StaffCustomerController : ControllerBase
                 Email = customer.User == null ? customer.LegacyEmail : customer.User.Email,
                 customer.Phone,
                 customer.Address,
-                VehicleNumbers = customer.Vehicles
+                Vehicles = customer.Vehicles
                     .OrderBy(vehicle => vehicle.VehicleNumber)
-                    .Select(vehicle => vehicle.VehicleNumber)
+                    .ThenBy(vehicle => vehicle.LicensePlate)
+                    .Select(vehicle => new
+                    {
+                        vehicle.Id,
+                        vehicle.VehicleNumber,
+                        vehicle.LicensePlate,
+                        vehicle.Make,
+                        vehicle.Model,
+                        vehicle.Year
+                    })
                     .ToList()
             })
             .ToListAsync();
+
+        var customers = customerRows.Select(customer => new
+        {
+            customer.Id,
+            customer.Name,
+            customer.Email,
+            customer.Phone,
+            customer.Address,
+            VehicleNumbers = customer.Vehicles
+                .Select(vehicle => FormatVehicleLabel(vehicle.VehicleNumber, vehicle.LicensePlate, vehicle.Make, vehicle.Model))
+                .Where(label => !string.IsNullOrWhiteSpace(label))
+                .Distinct()
+                .ToList(),
+            Vehicles = customer.Vehicles
+                .Select(vehicle => new
+                {
+                    vehicle.Id,
+                    vehicle.VehicleNumber,
+                    vehicle.LicensePlate,
+                    vehicle.Make,
+                    vehicle.Model,
+                    vehicle.Year,
+                    DisplayLabel = FormatVehicleLabel(vehicle.VehicleNumber, vehicle.LicensePlate, vehicle.Make, vehicle.Model)
+                })
+                .ToList()
+        }).ToList();
 
         return Ok(customers);
     }
@@ -81,6 +116,9 @@ public class StaffCustomerController : ControllerBase
         var customer = await _context.CustomerProfiles
             .AsNoTracking()
             .Include(existingCustomer => existingCustomer.User)
+            .Include(existingCustomer => existingCustomer.Vehicles)
+            .Include(existingCustomer => existingCustomer.ServiceHistories)
+                .ThenInclude(history => history.Vehicle)
             .Where(existingCustomer => existingCustomer.Id == id)
             .Select(existingCustomer => new
             {
@@ -133,5 +171,21 @@ public class StaffCustomerController : ControllerBase
         }
 
         return Ok(customer);
+    }
+
+    private static string FormatVehicleLabel(string? vehicleNumber, string? licensePlate, string? make, string? model)
+    {
+        if (!string.IsNullOrWhiteSpace(vehicleNumber))
+        {
+            return vehicleNumber.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(licensePlate))
+        {
+            return licensePlate.Trim();
+        }
+
+        var makeModel = string.Join(" ", new[] { make, model }.Where(value => !string.IsNullOrWhiteSpace(value)));
+        return makeModel.Trim();
     }
 }

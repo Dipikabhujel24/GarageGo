@@ -3,6 +3,7 @@ import { FaChartLine, FaShoppingCart, FaWallet, FaCalendar, FaChartBar } from 'r
 import ReportCards from '../components/ReportCards';
 import ReportsChart from '../components/ReportsChart';
 import ReportsTable from '../components/ReportsTable';
+import AdminDataToolbar from '../components/admin/AdminDataToolbar';
 import {
   extractReportApiError,
   getDailyReports,
@@ -10,6 +11,7 @@ import {
   getTopSellingParts,
   getYearlyReports,
 } from '../services/reportService';
+import { isThisWeek, isWithinDateRange } from '../utils/adminFilters';
 
 function normalizeReportRows(payload, selectedRange) {
   if (Array.isArray(payload)) {
@@ -38,7 +40,7 @@ function normalizeReportRows(payload, selectedRange) {
 }
 
 function getReportFetcher(range) {
-  if (range === 'Daily') {
+  if (range === 'Daily' || range === 'Weekly') {
     return getDailyReports;
   }
 
@@ -55,6 +57,8 @@ function Reports() {
   const [topSellingParts, setTopSellingParts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -95,20 +99,39 @@ function Reports() {
     };
   }, [selectedRange]);
 
+  const filteredReportData = useMemo(() => {
+    let rows = [...reportData];
+
+    if (selectedRange === 'Weekly') {
+      rows = rows.filter((row) => isThisWeek(row.date));
+    }
+
+    if (dateFrom || dateTo) {
+      rows = rows.filter((row) => isWithinDateRange(row.date, dateFrom, dateTo));
+    }
+
+    return rows;
+  }, [reportData, selectedRange, dateFrom, dateTo]);
+
+  const handleClearReportFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+  };
+
   const summaryCards = useMemo(() => {
-    const totalRevenue = reportData.reduce(
+    const totalRevenue = filteredReportData.reduce(
       (currentTotal, reportRow) => currentTotal + reportRow.revenue,
       0
     );
-    const totalOrders = reportData.reduce(
+    const totalOrders = filteredReportData.reduce(
       (currentTotal, reportRow) => currentTotal + reportRow.orders,
       0
     );
-    const totalPurchases = reportData.reduce(
+    const totalPurchases = filteredReportData.reduce(
       (currentTotal, reportRow) => currentTotal + reportRow.purchases,
       0
     );
-    const profitLoss = reportData.reduce(
+    const profitLoss = filteredReportData.reduce(
       (currentTotal, reportRow) => currentTotal + reportRow.profitLoss,
       0
     );
@@ -136,15 +159,15 @@ function Reports() {
         variant: 'trend',
       },
     ];
-  }, [reportData]);
+  }, [filteredReportData]);
 
   const chartData = useMemo(
     () =>
-      reportData.map((reportRow) => ({
+      filteredReportData.map((reportRow) => ({
         label: reportRow.date,
         revenue: reportRow.revenue,
       })),
-    [reportData]
+    [filteredReportData]
   );
 
   return (
@@ -211,7 +234,7 @@ function Reports() {
             </div>
 
             {/* Report Details Table */}
-            <ReportsTable rows={reportData} />
+            <ReportsTable rows={filteredReportData} />
 
             {/* Top Selling Parts Section */}
             <article className="report-top-parts-card card">

@@ -218,6 +218,51 @@
   font-size: 0.92rem;
 }
 
+.notification-inbox-list {
+  display: grid;
+  gap: 12px;
+}
+
+.notification-inbox-item {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(91, 45, 130, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.notification-inbox-item--unread {
+  border-color: rgba(240, 98, 146, 0.35);
+  box-shadow: 0 8px 20px rgba(240, 98, 146, 0.08);
+}
+
+.notification-inbox-item__head {
+  display: grid;
+  gap: 10px;
+}
+
+.notification-inbox-item__head h4 {
+  margin: 0 0 6px;
+}
+
+.notification-inbox-item__head p {
+  margin: 0;
+  color: var(--ink-500);
+}
+
+.notification-inbox-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.notification-inbox-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 @media (max-width: 1080px) {
   .notifications-summary-grid,
   .notifications-layout {

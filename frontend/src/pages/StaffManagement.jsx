@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import AdminDataToolbar from '../components/admin/AdminDataToolbar';
 import SecureForm from '../components/SecureForm';
+import { includesText, matchSearchFields } from '../utils/adminFilters';
 import {
   emailInputAutofillProps,
   newPasswordAutofillProps,
@@ -298,6 +300,10 @@ function StaffManagement() {
   const [staffList, setStaffList] = useState([]);
   const [activityList, setActivityList] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [recencyFilter, setRecencyFilter] = useState('all');
 
   // --- state: form ---
   const [formData, setFormData] = useState(initialFormState);
@@ -315,22 +321,62 @@ function StaffManagement() {
 
   const isEditing = useMemo(() => editingId !== null, [editingId]);
 
-  const filteredStaffList = useMemo(() => {
-    const normalizedQuery = searchQuery.trim().toLowerCase();
+  const staffSearchGetters = useMemo(
+    () => ({
+      name: (staffMember) => staffMember.name,
+      email: (staffMember) => staffMember.email,
+      role: (staffMember) => staffMember.role,
+    }),
+    []
+  );
 
-    if (!normalizedQuery) {
-      return staffList;
+  const filteredStaffList = useMemo(() => {
+    let list = [...staffList];
+
+    if (statusFilter === 'active') {
+      list = list.filter((staffMember) => (staffMember.status || 'Active') === 'Active');
+    } else if (statusFilter === 'disabled') {
+      list = list.filter((staffMember) => (staffMember.status || 'Active') !== 'Active');
+    } else if (statusFilter === 'admin') {
+      list = list.filter((staffMember) => String(staffMember.role || '').toLowerCase() === 'admin');
+    } else if (statusFilter === 'staff') {
+      list = list.filter((staffMember) => {
+        const role = String(staffMember.role || '').toLowerCase();
+        return role !== 'admin' && role !== '';
+      });
     }
 
-    return staffList.filter((staffMember) => {
-      const name = staffMember.name ?? '';
-      const email = staffMember.email ?? '';
+    if (recencyFilter === 'recent') {
+      list = [...list]
+        .sort((left, right) => {
+          const leftDate = new Date(left.createdAt || left.occurredAt || 0).getTime();
+          const rightDate = new Date(right.createdAt || right.occurredAt || 0).getTime();
+          return rightDate - leftDate || (resolveStaffId(right) || 0) - (resolveStaffId(left) || 0);
+        })
+        .slice(0, 15);
+    }
 
-      return [name, email].some((field) =>
-        field.toLowerCase().includes(normalizedQuery)
+    if (searchQuery.trim()) {
+      const fields = searchField === 'all' ? ['all'] : [searchField];
+      list = list.filter((staffMember) =>
+        matchSearchFields(staffMember, searchQuery, fields, staffSearchGetters)
       );
-    });
-  }, [searchQuery, staffList]);
+    }
+
+    if (roleFilter !== 'all') {
+      list = list.filter((staffMember) => includesText(staffMember.role, roleFilter));
+    }
+
+    return list;
+  }, [searchQuery, searchField, roleFilter, statusFilter, recencyFilter, staffList, staffSearchGetters]);
+
+  const handleClearStaffFilters = () => {
+    setSearchQuery('');
+    setSearchField('all');
+    setRoleFilter('all');
+    setStatusFilter('all');
+    setRecencyFilter('all');
+  };
 
   const loadStaffList = async () => {
     // Fetch staff list from the API and update UI flags.
@@ -553,20 +599,58 @@ function StaffManagement() {
                 Search staff by name or email.
               </p>
             </div>
-            <div className="staff-search-wrap">
-              <label className="form-label" htmlFor="staff-search">
-                Search Staff
-              </label>
-              <input
-                id="staff-search"
-                className="input-field"
-                type="search"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search by name or email"
-              />
-            </div>
           </div>
+
+          <AdminDataToolbar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Search staff..."
+            searchField={searchField}
+            onSearchFieldChange={setSearchField}
+            searchFields={[
+              { value: 'all', label: 'All fields' },
+              { value: 'name', label: 'Staff name' },
+              { value: 'email', label: 'Email' },
+              { value: 'role', label: 'Role' },
+            ]}
+            selects={[
+              {
+                id: 'status',
+                label: 'Filter',
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { value: 'all', label: 'All staff' },
+                  { value: 'active', label: 'Active staff' },
+                  { value: 'admin', label: 'Admins' },
+                  { value: 'staff', label: 'Staff members' },
+                  { value: 'disabled', label: 'Disabled' },
+                ],
+              },
+              {
+                id: 'recency',
+                label: 'Recency',
+                value: recencyFilter,
+                onChange: setRecencyFilter,
+                options: [
+                  { value: 'all', label: 'All time' },
+                  { value: 'recent', label: 'Recently added' },
+                ],
+              },
+              {
+                id: 'role',
+                label: 'Role',
+                value: roleFilter,
+                onChange: setRoleFilter,
+                options: [
+                  { value: 'all', label: 'All roles' },
+                  ...GARAGE_STAFF_ROLES.map((role) => ({ value: role, label: role })),
+                ],
+              },
+            ]}
+            onClear={handleClearStaffFilters}
+            resultText={`Showing ${filteredStaffList.length} of ${staffList.length} staff`}
+          />
 
           <StatusMessage message={message} type={messageType} />
           <StaffTable

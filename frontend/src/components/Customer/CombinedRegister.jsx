@@ -11,6 +11,7 @@ import {
   otpInputAutofillProps,
   textInputAutofillProps,
 } from '../../utils/formAutofill';
+import BrandLogo from '../BrandLogo';
 import './CustomerRegister.css';
 
 const CombinedRegister = () => {
@@ -101,9 +102,12 @@ const CombinedRegister = () => {
     return (
         <div className="register-page">
             <div className="register-container">
-                <div className="register-header">
-                    <h2>Sign Up — GarageGo</h2>
-                    <p>Create a Customer account to book services.</p>
+                <div className="register-header register-header--brand">
+                    <div className="brand-logo-wrap brand-logo-wrap--auth">
+                        <BrandLogo variant="auth" />
+                    </div>
+                    <h2>Create your account</h2>
+                    <p>Sign up for GarageGo to book services and manage your vehicles.</p>
                 </div>
                 <div className="register-form">
                     {message && <div className="success-message">{message}</div>}

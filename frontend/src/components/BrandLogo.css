@@ -1,0 +1,58 @@
+.brand-logo-wrap {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.brand-logo {
+  display: block;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.brand-logo--default {
+  max-width: 180px;
+  max-height: 64px;
+}
+
+.brand-logo--sidebar {
+  max-width: 168px;
+  max-height: 52px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  padding: 6px 10px;
+  box-shadow: 0 8px 20px rgba(20, 10, 40, 0.18);
+}
+
+.brand-logo--auth {
+  max-width: min(240px, 88%);
+  max-height: 88px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 10px 14px;
+  box-shadow: 0 12px 28px rgba(20, 10, 40, 0.16);
+}
+
+.brand-logo--compact {
+  max-width: 140px;
+  max-height: 40px;
+}
+
+.brand-logo-subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 0.02em;
+}
+
+.brand-logo-wrap--auth {
+  justify-items: center;
+  width: 100%;
+}
+
+.brand-logo-wrap--auth .brand-logo-subtitle {
+  color: rgba(255, 255, 255, 0.88);
+  text-align: center;
+}

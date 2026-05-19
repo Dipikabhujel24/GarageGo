@@ -230,7 +230,7 @@ function StaffSalesPage() {
   };
 
   return (
-    <section className="sales-page-shell">
+    <section className="sales-page-shell sales-page-shell--workspace">
       {feedback.message ? (
         <div className={`sales-banner sales-banner--${feedback.type || 'info'}`}>{feedback.message}</div>
       ) : null}

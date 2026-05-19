@@ -1,5 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import AdminDataToolbar from '../components/admin/AdminDataToolbar';
+import StatusChip from '../components/admin/StatusChip';
 import { getAllRequests } from '../services/customerFeatureService';
+import {
+  isWithinDateRange,
+  matchSearchFields,
+} from '../utils/adminFilters';
 
 const emptyRequests = {
   appointments: [],
@@ -77,8 +83,50 @@ export function useManagementRequests() {
   return { requests, isLoading, error };
 }
 
+const appointmentSearchGetters = {
+  customer: (appointment) => appointment.customerName || `Customer #${appointment.customerId}`,
+  vehicle: (appointment) => getVehicleLabel(appointment.vehicle),
+  service: (appointment) => appointment.serviceType,
+};
+
 function AppointmentsManagement() {
   const { requests, isLoading, error } = useManagementRequests();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  const filteredAppointments = useMemo(() => {
+    const query = searchQuery.trim();
+
+    return requests.appointments.filter((appointment) => {
+      const status = String(appointment.status || '').toLowerCase();
+
+      if (statusFilter !== 'all' && status !== statusFilter) {
+        return false;
+      }
+
+      if (!isWithinDateRange(appointment.appointmentDate, dateFrom, dateTo)) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      const fields = searchField === 'all' ? ['all'] : [searchField];
+      return matchSearchFields(appointment, query, fields, appointmentSearchGetters);
+    });
+  }, [requests.appointments, searchQuery, searchField, statusFilter, dateFrom, dateTo]);
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSearchField('all');
+    setStatusFilter('all');
+    setDateFrom('');
+    setDateTo('');
+  };
 
   return (
     <section className="appointments-management">
@@ -92,6 +140,43 @@ function AppointmentsManagement() {
 
       <section className="table-card card">
         <h3 className="staff-card-title card-title">Appointments</h3>
+
+        <AdminDataToolbar
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search appointments..."
+          searchField={searchField}
+          onSearchFieldChange={setSearchField}
+          searchFields={[
+            { value: 'all', label: 'All fields' },
+            { value: 'customer', label: 'Customer name' },
+            { value: 'vehicle', label: 'Vehicle number' },
+            { value: 'service', label: 'Service type' },
+          ]}
+          selects={[
+            {
+              id: 'status',
+              label: 'Status',
+              value: statusFilter,
+              onChange: setStatusFilter,
+              options: [
+                { value: 'all', label: 'All statuses' },
+                { value: 'pending', label: 'Pending' },
+                { value: 'approved', label: 'Approved' },
+                { value: 'completed', label: 'Completed' },
+                { value: 'cancelled', label: 'Cancelled' },
+              ],
+            },
+          ]}
+          showDateRange
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFromChange={setDateFrom}
+          onDateToChange={setDateTo}
+          onClear={handleClearFilters}
+          resultText={`Showing ${filteredAppointments.length} of ${requests.appointments.length} appointments`}
+        />
+
         <div className="table-container">
           <table className="table">
             <thead>
@@ -104,12 +189,12 @@ function AppointmentsManagement() {
               </tr>
             </thead>
             <tbody>
-              {requests.appointments.length === 0 ? (
+              {filteredAppointments.length === 0 ? (
                 <tr>
-                  <td className="empty-state" colSpan="5">No appointments booked yet.</td>
+                  <td className="empty-state" colSpan="5">No appointments match your filters.</td>
                 </tr>
               ) : (
-                requests.appointments.map((appointment) => (
+                filteredAppointments.map((appointment) => (
                   <tr key={appointment.id}>
                     <td>{formatDate(appointment.appointmentDate)}</td>
                     <td>{appointment.customerName || `Customer #${appointment.customerId}`}</td>
@@ -118,7 +203,9 @@ function AppointmentsManagement() {
                       <strong>{appointment.serviceType}</strong>
                       {appointment.description && <p className="table-note">{appointment.description}</p>}
                     </td>
-                    <td>{appointment.status}</td>
+                    <td>
+                      <StatusChip label={appointment.status || 'Pending'} />
+                    </td>
                   </tr>
                 ))
               )}

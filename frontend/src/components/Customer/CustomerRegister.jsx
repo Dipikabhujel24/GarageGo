@@ -11,6 +11,7 @@ import {
   otpInputAutofillProps,
   textInputAutofillProps,
 } from '../../utils/formAutofill';
+import BrandLogo from '../BrandLogo';
 import './CustomerRegister.css';
 
 const CustomerRegister = () => {
@@ -157,7 +158,10 @@ const CustomerRegister = () => {
     return (
         <div className="register-page">
             <div className="register-container">
-                <div className="register-header">
+                <div className="register-header register-header--brand">
+                    <div className="brand-logo-wrap brand-logo-wrap--auth">
+                        <BrandLogo variant="auth" />
+                    </div>
                     <h2>Complete Your GarageGo Profile</h2>
                     <p>Create your customer account and register your first vehicle in one step.</p>
                 </div>

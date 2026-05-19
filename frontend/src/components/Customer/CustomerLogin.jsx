@@ -18,6 +18,7 @@ import {
   otpInputAutofillProps,
   preventAutofillReadOnlyProps,
 } from '../../utils/formAutofill';
+import BrandLogo from '../BrandLogo';
 import './CustomerLogin.css';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
@@ -289,12 +290,8 @@ const CustomerLogin = () => {
     <div className="login-page">
       <div className="login-container">
         <div className="login-header">
-          <div className="welcome-img-placeholder">
-            <div className="illustration">
-              <span className="sign-in-text">
-                {view === 'login' ? 'Sign In' : 'Reset'}
-              </span>
-            </div>
+          <div className="brand-logo-wrap brand-logo-wrap--auth">
+            <BrandLogo variant="auth" />
           </div>
           <h2>{headerTitle}</h2>
           <p>{headerSubtitle}</p>

@@ -14,6 +14,7 @@ import StaffAddCustomer from "./components/Customer/StaffAddCustomer";
 import CustomerDashboard from "./components/Customer/customerDashboard";
 import AppointmentsManagement from "./pages/AppointmentsManagement";
 import AppInventoryOverview from "./pages/InventoryOverview";
+import StaffInventory from "./pages/StaffInventory";
 import CustomerLookup from "./pages/CustomerLookup";
 import CustomerReports from "./pages/CustomerReports";
 import CustomerServiceRequests from "./pages/CustomerServiceRequests";
@@ -198,8 +199,24 @@ function App() {
           <Route
             path="staff/inventory"
             element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
-                <AppInventoryOverview />
+              <ProtectedRoute allowedRoles={['Staff']}>
+                <StaffInventory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="staff/inventory/parts"
+            element={
+              <ProtectedRoute allowedRoles={['Staff']}>
+                <StaffInventory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="staff/inventory/low-stock"
+            element={
+              <ProtectedRoute allowedRoles={['Staff']}>
+                <StaffInventory />
               </ProtectedRoute>
             }
           />
@@ -293,7 +310,7 @@ function App() {
           <Route 
             path="admin/inventory" 
             element={
-              <ProtectedRoute allowedRoles={['Staff', 'Admin']}>
+              <ProtectedRoute allowedRoles={['Admin']}>
                 <AppInventoryOverview />
               </ProtectedRoute>
             } 

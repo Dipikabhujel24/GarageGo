@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import AdminDataToolbar from '../components/admin/AdminDataToolbar';
 import SecureForm from '../components/SecureForm';
 import { getParts, getVendors } from '../services/api';
+import {
+  includesText,
+  isWithinDateRange,
+  sortItems,
+} from '../utils/adminFilters';
 import {
   createPurchaseInvoice,
   deletePurchaseInvoice,
@@ -37,6 +43,13 @@ function PurchaseInvoices() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('success');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [vendorFilter, setVendorFilter] = useState('all');
+  const [amountFilter, setAmountFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const loadData = async ({ clearMessage = true } = {}) => {
     setIsLoading(true);
@@ -98,17 +111,17 @@ function PurchaseInvoices() {
       0
     );
 
-    const totalPurchaseAmount = invoices.reduce(
+    const totalPurchaseAmount = filteredInvoices.reduce(
       (total, invoice) => total + Number(invoice.totalAmount || 0),
       0
     );
 
     return {
-      totalInvoices: invoices.length,
+      totalInvoices: filteredInvoices.length,
       totalStockPurchased,
       totalPurchaseAmount,
     };
-  }, [invoices]);
+  }, [filteredInvoices]);
 
   const updateForm = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -479,6 +492,53 @@ function PurchaseInvoices() {
               </div>
             </div>
 
+            <AdminDataToolbar
+              searchValue={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Search purchase invoices..."
+              searchField={searchField}
+              onSearchFieldChange={setSearchField}
+              searchFields={[
+                { value: 'all', label: 'All fields' },
+                { value: 'vendor', label: 'Vendor name' },
+                { value: 'invoice', label: 'Invoice number' },
+                { value: 'part', label: 'Part name' },
+              ]}
+              selects={[
+                {
+                  id: 'vendor',
+                  label: 'Vendor',
+                  value: vendorFilter,
+                  onChange: setVendorFilter,
+                  options: [
+                    { value: 'all', label: 'All vendors' },
+                    ...vendors.map((vendor) => ({
+                      value: String(vendor.id),
+                      label: vendor.vendorName,
+                    })),
+                  ],
+                },
+                {
+                  id: 'amount',
+                  label: 'Amount',
+                  value: amountFilter,
+                  onChange: setAmountFilter,
+                  options: [
+                    { value: 'all', label: 'All amounts' },
+                    { value: 'highest', label: 'Highest purchase amount' },
+                    { value: 'lowest', label: 'Lowest purchase amount' },
+                  ],
+                },
+              ]}
+              showDateRange
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onDateFromChange={setDateFrom}
+              onDateToChange={setDateTo}
+              onClear={handleClearFilters}
+              resultText={`Showing ${filteredInvoices.length} of ${invoices.length} invoices`}
+            />
+
             <div className="table-container">
               <table className="table">
                 <thead>
@@ -491,14 +551,14 @@ function PurchaseInvoices() {
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.length === 0 ? (
+                  {filteredInvoices.length === 0 ? (
                     <tr>
                       <td className="empty-state" colSpan="5">
                         No purchase invoices have been created yet.
                       </td>
                     </tr>
                   ) : (
-                    invoices.map((invoice) => (
+                    filteredInvoices.map((invoice) => (
                       <tr key={invoice.id}>
                         <td>{invoice.invoiceNumber}</td>
                         <td>{invoice.vendorName || `Vendor ${invoice.vendorId}`}</td>
