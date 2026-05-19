@@ -281,7 +281,10 @@ public class CustomerFeatureController : ControllerBase
                 appointment.ServiceType,
                 appointment.Description,
                 appointment.Status,
-                appointment.CreatedAt
+                appointment.AdminNotes,
+                appointment.CreatedAt,
+                appointment.UpdatedAt,
+                appointment.StatusUpdatedAt
             }).ToListAsync();
 
         var partRequests = await (
@@ -299,7 +302,10 @@ public class CustomerFeatureController : ControllerBase
                 request.VehicleModel,
                 request.Description,
                 request.Status,
-                request.CreatedAt
+                request.AdminNotes,
+                request.CreatedAt,
+                request.UpdatedAt,
+                request.StatusUpdatedAt
             }).ToListAsync();
 
         var serviceReviews = await (

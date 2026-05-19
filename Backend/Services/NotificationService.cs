@@ -154,6 +154,76 @@ public class NotificationService
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task NotifyAppointmentStatusChangedAsync(
+        Appointment appointment,
+        int customerUserId,
+        string customerName,
+        string previousStatus,
+        string newStatus,
+        EmailService? email = null,
+        string? customerEmail = null,
+        CancellationToken ct = default)
+    {
+        var statusMessage = BuildAppointmentStatusMessage(appointment, newStatus);
+
+        await TryCreateCustomerNotificationAsync(
+            customerUserId,
+            type: "appointment",
+            title: $"Appointment {newStatus}",
+            message: statusMessage,
+            linkUrl: "/appointments",
+            $"appointment-status:{appointment.Id}:{newStatus}:{DateTime.UtcNow:yyyyMMddHHmmss}",
+            referenceType: "Appointment",
+            referenceId: appointment.Id,
+            ct);
+
+        await _db.SaveChangesAsync(ct);
+
+        if (email is not null && !string.IsNullOrWhiteSpace(customerEmail))
+        {
+            await TrySendStatusEmailAsync(
+                email,
+                customerEmail,
+                $"GarageGo appointment update — {newStatus}",
+                statusMessage);
+        }
+    }
+
+    public async Task NotifyPartRequestStatusChangedAsync(
+        UnavailablePartRequest request,
+        int customerUserId,
+        string customerName,
+        string previousStatus,
+        string newStatus,
+        EmailService? email = null,
+        string? customerEmail = null,
+        CancellationToken ct = default)
+    {
+        var statusMessage = BuildPartRequestStatusMessage(request, newStatus);
+
+        await TryCreateCustomerNotificationAsync(
+            customerUserId,
+            type: "part_request",
+            title: $"Part request {newStatus}",
+            message: statusMessage,
+            linkUrl: "/part-requests",
+            $"part-request-status:{request.Id}:{newStatus}:{DateTime.UtcNow:yyyyMMddHHmmss}",
+            referenceType: "PartRequest",
+            referenceId: request.Id,
+            ct);
+
+        await _db.SaveChangesAsync(ct);
+
+        if (email is not null && !string.IsNullOrWhiteSpace(customerEmail))
+        {
+            await TrySendStatusEmailAsync(
+                email,
+                customerEmail,
+                $"GarageGo part request update — {newStatus}",
+                statusMessage);
+        }
+    }
+
     public async Task NotifyNewPartRequestAsync(UnavailablePartRequest request, int customerUserId, string customerName, CancellationToken ct = default)
     {
         await TryCreateAdminNotificationAsync(
@@ -324,6 +394,52 @@ public class NotificationService
         });
 
         return true;
+    }
+
+    private static string BuildAppointmentStatusMessage(Appointment appointment, string newStatus) =>
+        newStatus switch
+        {
+            AppointmentStatuses.Approved =>
+                $"Your {appointment.ServiceType} appointment on {appointment.AppointmentDate:MMM d, yyyy HH:mm} has been approved.",
+            AppointmentStatuses.Rejected =>
+                $"Your {appointment.ServiceType} appointment request was declined. Contact the garage for details.",
+            AppointmentStatuses.InProgress =>
+                $"Your {appointment.ServiceType} appointment is now in progress.",
+            AppointmentStatuses.Completed =>
+                $"Your {appointment.ServiceType} appointment has been marked completed. Thank you for visiting GarageGo.",
+            AppointmentStatuses.Cancelled =>
+                $"Your {appointment.ServiceType} appointment on {appointment.AppointmentDate:MMM d, yyyy HH:mm} was cancelled.",
+            _ =>
+                $"Your appointment status is now {newStatus}."
+        };
+
+    private static string BuildPartRequestStatusMessage(UnavailablePartRequest request, string newStatus) =>
+        newStatus switch
+        {
+            PartRequestStatuses.Approved =>
+                $"Your request for {request.PartName} ({request.VehicleModel}) has been approved.",
+            PartRequestStatuses.Rejected =>
+                $"Your request for {request.PartName} could not be fulfilled at this time.",
+            PartRequestStatuses.Ordered =>
+                $"We have ordered {request.PartName} for your {request.VehicleModel}.",
+            PartRequestStatuses.Available =>
+                $"Good news — {request.PartName} for your {request.VehicleModel} is now available.",
+            PartRequestStatuses.Fulfilled =>
+                $"Your part request for {request.PartName} has been fulfilled.",
+            _ =>
+                $"Your part request for {request.PartName} is now {newStatus}."
+        };
+
+    private async Task TrySendStatusEmailAsync(EmailService email, string to, string subject, string body)
+    {
+        try
+        {
+            await email.SendEmailAsync(to.Trim(), subject, body);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send status update email to {Recipient}", to);
+        }
     }
 
     private async Task DismissByDedupePrefixAsync(string dedupePrefix, CancellationToken ct)

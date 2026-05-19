@@ -1,11 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import AdminDataToolbar from '../components/admin/AdminDataToolbar';
+import RequestManagePanel from '../components/admin/RequestManagePanel';
 import StatusChip from '../components/admin/StatusChip';
-import { getAllRequests } from '../services/customerFeatureService';
+import {
+  APPOINTMENT_STATUSES,
+  getAdminAppointments,
+  updateAppointmentStatus,
+} from '../services/adminRequestService';
 import {
   isWithinDateRange,
   matchSearchFields,
 } from '../utils/adminFilters';
+import { statusMatchesFilter } from '../utils/statusHelpers';
 
 const emptyRequests = {
   appointments: [],
@@ -42,6 +48,11 @@ export function useManagementRequests() {
   const [requests, setRequests] = useState(emptyRequests);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
+
+  const reload = useCallback(() => {
+    setReloadToken((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -51,6 +62,7 @@ export function useManagementRequests() {
       setError('');
 
       try {
+        const { getAllRequests } = await import('../services/customerFeatureService');
         const data = await getAllRequests();
 
         if (!isMounted) {
@@ -78,9 +90,9 @@ export function useManagementRequests() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [reloadToken]);
 
-  return { requests, isLoading, error };
+  return { requests, isLoading, error, reload };
 }
 
 const appointmentSearchGetters = {
@@ -90,20 +102,42 @@ const appointmentSearchGetters = {
 };
 
 function AppointmentsManagement() {
-  const { requests, isLoading, error } = useManagementRequests();
+  const [appointments, setAppointments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchField, setSearchField] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [panelFeedback, setPanelFeedback] = useState(null);
+
+  const loadAppointments = useCallback(async () => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const data = await getAdminAppointments();
+      setAppointments(Array.isArray(data) ? data : []);
+    } catch (loadError) {
+      setError(loadError.message || 'Unable to load appointments.');
+      setAppointments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
 
   const filteredAppointments = useMemo(() => {
     const query = searchQuery.trim();
 
-    return requests.appointments.filter((appointment) => {
-      const status = String(appointment.status || '').toLowerCase();
-
-      if (statusFilter !== 'all' && status !== statusFilter) {
+    return appointments.filter((appointment) => {
+      if (!statusMatchesFilter(appointment.status, statusFilter)) {
         return false;
       }
 
@@ -118,7 +152,31 @@ function AppointmentsManagement() {
       const fields = searchField === 'all' ? ['all'] : [searchField];
       return matchSearchFields(appointment, query, fields, appointmentSearchGetters);
     });
-  }, [requests.appointments, searchQuery, searchField, statusFilter, dateFrom, dateTo]);
+  }, [appointments, searchQuery, searchField, statusFilter, dateFrom, dateTo]);
+
+  const handleSaveAppointment = async ({ status, adminNotes }) => {
+    if (!selectedAppointment) {
+      return;
+    }
+
+    setIsSaving(true);
+    setPanelFeedback(null);
+
+    try {
+      const appointmentId = selectedAppointment.id;
+      await updateAppointmentStatus(appointmentId, {
+        status,
+        adminNotes,
+      });
+      setSelectedAppointment(null);
+      await loadAppointments();
+      setPanelFeedback({ type: 'success', message: `Appointment #${appointmentId} updated to ${status}.` });
+    } catch (saveError) {
+      setPanelFeedback({ type: 'error', message: saveError.message || 'Unable to update appointment.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleClearFilters = () => {
     setSearchQuery('');
@@ -132,10 +190,13 @@ function AppointmentsManagement() {
     <section className="appointments-management">
       <div className="page-header-card card">
         <h2 className="section-title card-title">Appointments Management</h2>
-        <p className="section-copy">Review all customer appointments.</p>
+        <p className="section-copy">Review, approve, and manage customer appointment requests.</p>
       </div>
 
       {error && <div className="message-banner error">{error}</div>}
+      {panelFeedback && !selectedAppointment ? (
+        <div className={`message-banner ${panelFeedback.type === 'error' ? 'error' : ''}`}>{panelFeedback.message}</div>
+      ) : null}
       {isLoading && <div className="message-banner">Loading appointments...</div>}
 
       <section className="table-card card">
@@ -163,6 +224,8 @@ function AppointmentsManagement() {
                 { value: 'all', label: 'All statuses' },
                 { value: 'pending', label: 'Pending' },
                 { value: 'approved', label: 'Approved' },
+                { value: 'rejected', label: 'Rejected' },
+                { value: 'in-progress', label: 'In Progress' },
                 { value: 'completed', label: 'Completed' },
                 { value: 'cancelled', label: 'Cancelled' },
               ],
@@ -174,7 +237,7 @@ function AppointmentsManagement() {
           onDateFromChange={setDateFrom}
           onDateToChange={setDateTo}
           onClear={handleClearFilters}
-          resultText={`Showing ${filteredAppointments.length} of ${requests.appointments.length} appointments`}
+          resultText={`Showing ${filteredAppointments.length} of ${appointments.length} appointments`}
         />
 
         <div className="table-container">
@@ -186,25 +249,46 @@ function AppointmentsManagement() {
                 <th>Vehicle</th>
                 <th>Service</th>
                 <th>Status</th>
+                <th>Submitted</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredAppointments.length === 0 ? (
                 <tr>
-                  <td className="empty-state" colSpan="5">No appointments match your filters.</td>
+                  <td className="empty-state" colSpan="7">No appointments match your filters.</td>
                 </tr>
               ) : (
                 filteredAppointments.map((appointment) => (
                   <tr key={appointment.id}>
                     <td>{formatDate(appointment.appointmentDate)}</td>
-                    <td>{appointment.customerName || `Customer #${appointment.customerId}`}</td>
+                    <td>
+                      <strong>{appointment.customerName || `Customer #${appointment.customerId}`}</strong>
+                      {appointment.customerPhone && <p className="table-note">{appointment.customerPhone}</p>}
+                    </td>
                     <td>{getVehicleLabel(appointment.vehicle)}</td>
                     <td>
                       <strong>{appointment.serviceType}</strong>
                       {appointment.description && <p className="table-note">{appointment.description}</p>}
+                      {appointment.adminNotes && (
+                        <p className="table-note table-note--admin">Admin: {appointment.adminNotes}</p>
+                      )}
                     </td>
                     <td>
                       <StatusChip label={appointment.status || 'Pending'} />
+                    </td>
+                    <td>{formatDate(appointment.createdAt)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="button button-primary inventory-action-button"
+                        onClick={() => {
+                          setPanelFeedback(null);
+                          setSelectedAppointment(appointment);
+                        }}
+                      >
+                        Manage
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -213,6 +297,26 @@ function AppointmentsManagement() {
           </table>
         </div>
       </section>
+
+      <RequestManagePanel
+        title="Manage appointment"
+        record={selectedAppointment}
+        statusOptions={APPOINTMENT_STATUSES}
+        isSaving={isSaving}
+        feedback={panelFeedback && selectedAppointment ? panelFeedback : null}
+        onClose={() => setSelectedAppointment(null)}
+        onSave={handleSaveAppointment}
+        renderDetails={(record) => (
+          <div className="request-manage-panel__details">
+            <p><strong>Customer:</strong> {record.customerName}</p>
+            <p><strong>Email:</strong> {record.customerEmail || '—'}</p>
+            <p><strong>Vehicle:</strong> {getVehicleLabel(record.vehicle)}</p>
+            <p><strong>Service:</strong> {record.serviceType}</p>
+            <p><strong>Scheduled:</strong> {formatDate(record.appointmentDate)}</p>
+            {record.description ? <p><strong>Customer notes:</strong> {record.description}</p> : null}
+          </div>
+        )}
+      />
     </section>
   );
 }

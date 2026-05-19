@@ -183,6 +183,23 @@
   color: #9f2e2e;
 }
 
+.request-status-badge--in-progress,
+.request-status-badge--ordered,
+.request-status-badge--available {
+  background: #eef4ff;
+  color: #1d4ed8;
+}
+
+.request-status-badge--fulfilled {
+  background: #ecfff4;
+  color: #14532d;
+}
+
+.table-note--admin {
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
 .star-rating-picker {
   display: flex;
   flex-wrap: wrap;

@@ -130,7 +130,7 @@ function CustomerPartRequestsPage() {
           <CustomerRequestHistoryTable
             title="Your part requests"
             emptyMessage="No unavailable part requests submitted yet."
-            columns={['Submitted', 'Part', 'Vehicle', 'Status']}
+            columns={['Submitted', 'Part', 'Vehicle', 'Status', 'Garage update']}
             rows={partRequests}
             renderRow={(item) => (
               <tr key={item.id}>
@@ -142,6 +142,16 @@ function CustomerPartRequestsPage() {
                 <td>{item.vehicleModel}</td>
                 <td>
                   <RequestStatusBadge status={item.status} />
+                  {item.statusUpdatedAt ? (
+                    <p className="table-note">Updated {formatCustomerRequestDate(item.statusUpdatedAt)}</p>
+                  ) : null}
+                </td>
+                <td>
+                  {item.adminNotes ? (
+                    <p className="table-note table-note--admin">{item.adminNotes}</p>
+                  ) : (
+                    <span className="customer-lookup-vehicle-empty">—</span>
+                  )}
                 </td>
               </tr>
             )}

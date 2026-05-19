@@ -173,7 +173,7 @@ function CustomerAppointmentsPage() {
           <CustomerRequestHistoryTable
             title="Your appointments"
             emptyMessage="No appointments booked yet."
-            columns={['Date', 'Vehicle', 'Service', 'Status']}
+            columns={['Date', 'Vehicle', 'Service', 'Status', 'Garage update']}
             rows={appointments}
             renderRow={(item) => (
               <tr key={item.id}>
@@ -185,6 +185,16 @@ function CustomerAppointmentsPage() {
                 </td>
                 <td>
                   <RequestStatusBadge status={item.status} />
+                  {item.statusUpdatedAt ? (
+                    <p className="table-note">Updated {formatCustomerRequestDate(item.statusUpdatedAt)}</p>
+                  ) : null}
+                </td>
+                <td>
+                  {item.adminNotes ? (
+                    <p className="table-note table-note--admin">{item.adminNotes}</p>
+                  ) : (
+                    <span className="customer-lookup-vehicle-empty">—</span>
+                  )}
                 </td>
               </tr>
             )}

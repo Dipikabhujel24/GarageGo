@@ -641,6 +641,9 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
 
     await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_UnavailablePartRequests_CustomerId\" ON \"UnavailablePartRequests\" (\"CustomerId\");");
 
+    await EnsureRequestWorkflowColumnsAsync(db, connection, providerName, "Appointments");
+    await EnsureRequestWorkflowColumnsAsync(db, connection, providerName, "UnavailablePartRequests");
+
     await EnsureTableAsync(
         db,
         existingTables,
@@ -1358,6 +1361,55 @@ static Dictionary<string, string> ParseConnectionStringQuery(string queryString)
 static bool IsPostgresProvider(string? providerName) =>
     !string.IsNullOrWhiteSpace(providerName)
     && providerName.Contains("Npgsql", StringComparison.OrdinalIgnoreCase);
+
+static async Task EnsureRequestWorkflowColumnsAsync(
+    AppDbContext db,
+    System.Data.Common.DbConnection connection,
+    string providerName,
+    string tableName)
+{
+    var columns = await GetTableColumnsAsync(connection, providerName, tableName);
+
+    if (!columns.Contains("AdminNotes"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"AdminNotes\" text NOT NULL DEFAULT '';");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"AdminNotes\" TEXT NOT NULL DEFAULT '';");
+        }
+
+        columns.Add("AdminNotes");
+    }
+
+    if (!columns.Contains("UpdatedAt"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"UpdatedAt\" timestamp with time zone NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"UpdatedAt\" TEXT NULL;");
+        }
+
+        columns.Add("UpdatedAt");
+    }
+
+    if (!columns.Contains("StatusUpdatedAt"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"StatusUpdatedAt\" timestamp with time zone NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"StatusUpdatedAt\" TEXT NULL;");
+        }
+    }
+}
 
 static string NormalizeEmail(string? email) =>
     (email ?? string.Empty).Trim().ToLowerInvariant();
