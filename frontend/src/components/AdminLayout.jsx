@@ -48,6 +48,18 @@ function getPageTitle(pathname) {
     return 'Requests & Appointments';
   }
 
+  if (pathname.includes('/appointments-management')) {
+    return 'Appointments Management';
+  }
+
+  if (pathname.includes('/part-requests')) {
+    return 'Part Requests';
+  }
+
+  if (pathname.includes('/service-reviews')) {
+    return 'Service Reviews';
+  }
+
   if (pathname.includes('customers')) {
     return 'Customer Lookup';
   }

@@ -54,7 +54,7 @@ function CustomerLookup() {
       <div className="page-header-card card">
         <h2 className="section-title card-title">Customer Lookup</h2>
         <p className="section-copy">
-          Search customers by vehicle number, phone, customer ID, or name.
+          Search customers by vehicle number, plate, phone, customer ID, or name.
         </p>
       </div>
 
@@ -68,7 +68,7 @@ function CustomerLookup() {
             className="input-field"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Name, phone, ID, or vehicle number"
+            placeholder="Name, phone, ID, vehicle number, or plate"
           />
           <button className="button button-primary" type="submit">
             Search
@@ -108,7 +108,7 @@ function CustomerLookup() {
                         <td>{customer.id}</td>
                         <td>{customer.name}</td>
                         <td>{customer.phone}</td>
-                        <td>{customer.vehicleNumbers?.join(', ') || '-'}</td>
+                        <td>{customer.vehicleNumbers?.filter(Boolean).join(', ') || '-'}</td>
                         <td>
                           <button
                             className="button button-primary"
@@ -149,8 +149,9 @@ function CustomerLookup() {
                   <div className="feature-list">
                     {selectedCustomer.vehicles.map((vehicle) => (
                       <article className="feature-list-item" key={vehicle.id}>
-                        <strong>{vehicle.vehicleNumber}</strong>
+                        <strong>{vehicle.vehicleNumber || vehicle.licensePlate || '-'}</strong>
                         <p>{vehicle.make} {vehicle.model} {vehicle.year || ''}</p>
+                        <p>Vehicle No: {vehicle.vehicleNumber || '-'} | Plate: {vehicle.licensePlate || '-'}</p>
                         <p>Color: {vehicle.color || '-'} | Type: {vehicle.vehicleType || '-'}</p>
                       </article>
                     ))}

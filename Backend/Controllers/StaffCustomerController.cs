@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/staff-customers")]
-[Authorize(Roles = "Staff")]
+[Authorize(Roles = "Staff,Admin")]
 public class StaffCustomerController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -29,13 +29,30 @@ public class StaffCustomerController : ControllerBase
         {
             var loweredQuery = normalizedQuery.ToLower();
             var isIdSearch = int.TryParse(normalizedQuery, out var customerId);
+            var isShortNumericSearch = isIdSearch && normalizedQuery.Length <= 4;
 
-            customersQuery = customersQuery.Where(customer =>
-                (isIdSearch && customer.Id == customerId) ||
-                customer.Name.ToLower().Contains(loweredQuery) ||
-                customer.Phone.ToLower().Contains(loweredQuery) ||
-                (customer.User != null && customer.User.Email.ToLower().Contains(loweredQuery)) ||
-                customer.Vehicles.Any(vehicle => vehicle.VehicleNumber.ToLower().Contains(loweredQuery)));
+            if (isShortNumericSearch)
+            {
+                var exactCustomerExists = await customersQuery.AnyAsync(customer => customer.Id == customerId);
+
+                customersQuery = exactCustomerExists
+                    ? customersQuery.Where(customer => customer.Id == customerId)
+                    : customersQuery.Where(customer =>
+                        customer.Vehicles.Any(vehicle =>
+                            vehicle.VehicleNumber.ToLower().Contains(loweredQuery) ||
+                            vehicle.LicensePlate.ToLower().Contains(loweredQuery)));
+            }
+            else
+            {
+                customersQuery = customersQuery.Where(customer =>
+                    (isIdSearch && customer.Id == customerId) ||
+                    customer.Name.ToLower().Contains(loweredQuery) ||
+                    customer.Phone.ToLower().Contains(loweredQuery) ||
+                    (customer.User != null && customer.User.Email.ToLower().Contains(loweredQuery)) ||
+                    customer.Vehicles.Any(vehicle =>
+                        vehicle.VehicleNumber.ToLower().Contains(loweredQuery) ||
+                        vehicle.LicensePlate.ToLower().Contains(loweredQuery)));
+            }
         }
 
         var customers = await customersQuery
@@ -79,6 +96,7 @@ public class StaffCustomerController : ControllerBase
                     {
                         vehicle.Id,
                         vehicle.VehicleNumber,
+                        vehicle.LicensePlate,
                         vehicle.Make,
                         vehicle.Model,
                         vehicle.Year,

@@ -37,7 +37,32 @@ public class CustomerFeatureController : ControllerBase
         return Ok(ServiceTypeOptions);
     }
 
-    [Authorize(Roles = "Staff")]
+    [Authorize(Roles = "Customer")]
+    [HttpGet("my-requests")]
+    public async Task<IActionResult> GetMyRequests()
+    {
+        if (!TryGetLoggedInUserId(out var userId))
+        {
+            return Unauthorized(new { message = "Invalid or missing token." });
+        }
+
+        var customerId = await ResolveCustomerProfileIdAsync(userId);
+        if (!customerId.HasValue)
+        {
+            return NotFound(new { message = "Customer not found." });
+        }
+
+        return Ok(await BuildRequestDashboardAsync(customerId.Value));
+    }
+
+    [Authorize(Roles = "Staff,Admin")]
+    [HttpGet("all-requests")]
+    public async Task<IActionResult> GetAllRequests()
+    {
+        return Ok(await BuildRequestDashboardAsync());
+    }
+
+    [Authorize(Roles = "Staff,Admin")]
     [HttpGet("{customerId:int}/vehicles")]
     public async Task<IActionResult> GetVehicles(int customerId)
     {
@@ -60,7 +85,7 @@ public class CustomerFeatureController : ControllerBase
         return Ok(vehicles);
     }
 
-    [Authorize(Roles = "Staff")]
+    [Authorize(Roles = "Staff,Admin")]
     [HttpGet("{customerId:int}/service-history")]
     public async Task<IActionResult> GetServiceHistory(int customerId)
     {
@@ -197,6 +222,93 @@ public class CustomerFeatureController : ControllerBase
             .Where(profile => profile.UserId == userId)
             .Select(profile => (int?)profile.Id)
             .FirstOrDefaultAsync();
+    }
+
+    private async Task<object> BuildRequestDashboardAsync(int? customerId = null)
+    {
+        var appointmentsQuery = _context.Appointments.AsNoTracking();
+        var partRequestsQuery = _context.UnavailablePartRequests.AsNoTracking();
+        var serviceReviewsQuery = _context.ServiceReviews.AsNoTracking();
+
+        if (customerId.HasValue)
+        {
+            appointmentsQuery = appointmentsQuery.Where(appointment => appointment.CustomerId == customerId.Value);
+            partRequestsQuery = partRequestsQuery.Where(request => request.CustomerId == customerId.Value);
+            serviceReviewsQuery = serviceReviewsQuery.Where(review => review.CustomerId == customerId.Value);
+        }
+
+        var appointments = await (
+            from appointment in appointmentsQuery
+            join customer in _context.CustomerProfiles.AsNoTracking()
+                on appointment.CustomerId equals customer.Id into customerJoin
+            from customer in customerJoin.DefaultIfEmpty()
+            join vehicle in _context.CustomerVehicles.AsNoTracking()
+                on appointment.VehicleId equals vehicle.Id into vehicleJoin
+            from vehicle in vehicleJoin.DefaultIfEmpty()
+            orderby appointment.AppointmentDate descending
+            select new
+            {
+                appointment.Id,
+                appointment.CustomerId,
+                CustomerName = customer == null ? null : customer.Name,
+                appointment.VehicleId,
+                Vehicle = vehicle == null
+                    ? null
+                    : new
+                    {
+                        vehicle.VehicleNumber,
+                        vehicle.Make,
+                        vehicle.Model,
+                        vehicle.Year,
+                        vehicle.LicensePlate
+                    },
+                appointment.AppointmentDate,
+                appointment.ServiceType,
+                appointment.Description,
+                appointment.Status,
+                appointment.CreatedAt
+            }).ToListAsync();
+
+        var partRequests = await (
+            from request in partRequestsQuery
+            join customer in _context.CustomerProfiles.AsNoTracking()
+                on request.CustomerId equals customer.Id into customerJoin
+            from customer in customerJoin.DefaultIfEmpty()
+            orderby request.CreatedAt descending
+            select new
+            {
+                request.Id,
+                request.CustomerId,
+                CustomerName = customer == null ? null : customer.Name,
+                request.PartName,
+                request.VehicleModel,
+                request.Description,
+                request.Status,
+                request.CreatedAt
+            }).ToListAsync();
+
+        var serviceReviews = await (
+            from review in serviceReviewsQuery
+            join customer in _context.CustomerProfiles.AsNoTracking()
+                on review.CustomerId equals customer.Id into customerJoin
+            from customer in customerJoin.DefaultIfEmpty()
+            orderby review.CreatedAt descending
+            select new
+            {
+                review.Id,
+                review.CustomerId,
+                CustomerName = customer == null ? null : customer.Name,
+                review.Rating,
+                review.Comment,
+                review.CreatedAt
+            }).ToListAsync();
+
+        return new
+        {
+            Appointments = appointments,
+            PartRequests = partRequests,
+            ServiceReviews = serviceReviews
+        };
     }
 
     private bool TryGetLoggedInUserId(out int userId)
