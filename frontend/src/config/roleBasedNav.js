@@ -44,6 +44,7 @@ export const navigationConfig = [
       { label: 'Appointments', path: '/admin/appointments-management', allowedRoles: ['Admin'] },
       { label: 'Part Requests', path: '/admin/part-requests', allowedRoles: ['Admin'] },
       { label: 'Service Reviews', path: '/admin/service-reviews', allowedRoles: ['Admin'] },
+      { label: 'Notifications', path: '/admin/notifications', allowedRoles: ['Admin'] },
       { label: 'Vendors', path: '/admin/vendors', allowedRoles: ['Admin'] },
       { label: 'Parts', path: '/admin/parts', allowedRoles: ['Admin'] },
       { label: 'Purchase Invoices', path: '/admin/purchase-invoices', allowedRoles: ['Admin'] },

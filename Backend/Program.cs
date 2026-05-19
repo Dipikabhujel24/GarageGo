@@ -51,6 +51,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(normalizedConnectionString);
 });
 
+// Background worker for low-stock notifications and overdue credit reminders
+builder.Services.AddHostedService<Backend.Services.LowStockAndCreditReminderService>();
+
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "garagego_super_secret_key_123456789";
 var jwtIssuer = builder.Configuration["Jwt:Issuer"];
 var jwtAudience = builder.Configuration["Jwt:Audience"];
@@ -306,6 +309,21 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
 
     await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_Parts_VendorId\" ON \"Parts\" (\"VendorId\");");
 
+    var partsColumns = await GetTableColumnsAsync(connection, providerName, "Parts");
+    if (!partsColumns.Contains("LastLowStockNotifiedAt"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Parts\" ADD COLUMN \"LastLowStockNotifiedAt\" timestamp with time zone NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Parts\" ADD COLUMN \"LastLowStockNotifiedAt\" TEXT NULL;");
+        }
+
+        partsColumns.Add("LastLowStockNotifiedAt");
+    }
+
     await EnsureTableAsync(
         db,
         existingTables,
@@ -549,6 +567,20 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
         existingColumns.Add("InvoiceNumber");
     }
 
+    if (!existingColumns.Contains("ReminderSentAt"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"ServiceHistories\" ADD COLUMN \"ReminderSentAt\" timestamp with time zone NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"ServiceHistories\" ADD COLUMN \"ReminderSentAt\" TEXT NULL;");
+        }
+
+        existingColumns.Add("ReminderSentAt");
+    }
+
     if (existingColumns.Contains("HistoryType") && existingColumns.Contains("Title"))
     {
         await EnsureSqlAsync(
@@ -584,6 +616,34 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
     {
         await EnsureSqlAsync(db, "ALTER TABLE \"Customers\" ADD COLUMN \"UserId\" INTEGER NULL;");
         customerColumns.Add("UserId");
+    }
+
+    if (!customerColumns.Contains("LoyaltyPoints"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Customers\" ADD COLUMN \"LoyaltyPoints\" integer NOT NULL DEFAULT 0;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Customers\" ADD COLUMN \"LoyaltyPoints\" INTEGER NOT NULL DEFAULT 0;");
+        }
+
+        customerColumns.Add("LoyaltyPoints");
+    }
+
+    if (!customerColumns.Contains("LastLoyaltyNotifiedAt"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Customers\" ADD COLUMN \"LastLoyaltyNotifiedAt\" timestamp with time zone NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Customers\" ADD COLUMN \"LastLoyaltyNotifiedAt\" TEXT NULL;");
+        }
+
+        customerColumns.Add("LastLoyaltyNotifiedAt");
     }
 
     await EnsureSqlAsync(db, "UPDATE \"Customers\" SET \"Role\" = 'Customer' WHERE \"Role\" IS NULL OR TRIM(\"Role\") = '';");
@@ -622,6 +682,15 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
         }
         else
         {
+
+            if (IsPostgresProvider(providerName))
+            {
+                await EnsureSqlAsync(db, "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_CustomerVehicles_LicensePlate\" ON \"CustomerVehicles\" (LOWER(\"LicensePlate\"));");
+            }
+            else
+            {
+                await EnsureSqlAsync(db, "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_CustomerVehicles_LicensePlate\" ON \"CustomerVehicles\" (\"LicensePlate\");");
+            }
             // SQLite disallows adding a column with a non-constant default via ALTER TABLE.
             // Add a nullable column, then populate existing rows with the current timestamp.
             await EnsureSqlAsync(db, "ALTER TABLE \"CustomerVehicles\" ADD COLUMN \"CreatedAt\" TEXT NULL DEFAULT NULL;");
@@ -759,13 +828,6 @@ static async Task EnsureInitialAdminAsync(
     IConfiguration configuration,
     ILogger logger)
 {
-    var adminExists = await db.Users.AnyAsync(user => user.Role == "Admin");
-
-    if (adminExists)
-    {
-        return;
-    }
-
     var adminName = configuration["InitialAdmin:Name"]?.Trim();
     var adminEmail = configuration["InitialAdmin:Email"]?.Trim().ToLowerInvariant();
     var adminPassword = configuration["InitialAdmin:Password"];
@@ -791,6 +853,9 @@ static async Task EnsureInitialAdminAsync(
     {
         existingUser.Role = "Admin";
         existingUser.Status = "Active";
+        existingUser.EmailVerified = true;
+        existingUser.VerificationCode = null;
+        existingUser.VerificationExpiresAt = null;
 
         if (existingUser.StaffProfile == null)
         {
@@ -816,13 +881,49 @@ static async Task EnsureInitialAdminAsync(
         return;
     }
 
+    var repairedAdmin = await db.Users
+        .Include(user => user.StaffProfile)
+        .FirstOrDefaultAsync(user => user.Role == "Admin");
+
+    if (repairedAdmin != null)
+    {
+        repairedAdmin.Status = "Active";
+        repairedAdmin.EmailVerified = true;
+        repairedAdmin.VerificationCode = null;
+        repairedAdmin.VerificationExpiresAt = null;
+
+        if (repairedAdmin.StaffProfile == null)
+        {
+            db.StaffProfiles.Add(new StaffProfile
+            {
+                User = repairedAdmin,
+                Name = adminName,
+                LegacyEmail = repairedAdmin.Email,
+                LegacyPasswordHash = repairedAdmin.PasswordHash,
+                LegacyRole = "Admin"
+            });
+        }
+        else
+        {
+            repairedAdmin.StaffProfile.Name = adminName;
+            repairedAdmin.StaffProfile.LegacyEmail = repairedAdmin.Email;
+            repairedAdmin.StaffProfile.LegacyPasswordHash = repairedAdmin.PasswordHash;
+            repairedAdmin.StaffProfile.LegacyRole = "Admin";
+        }
+
+        await db.SaveChangesAsync();
+        logger.LogInformation("Repaired existing admin account {AdminEmail}.", repairedAdmin.Email);
+        return;
+    }
+
     var passwordHash = BCrypt.Net.BCrypt.HashPassword(adminPassword);
     var adminUser = new AppUser
     {
         Email = adminEmail,
         PasswordHash = passwordHash,
         Role = "Admin",
-        Status = "Active"
+        Status = "Active",
+        EmailVerified = true
     };
 
     db.Users.Add(adminUser);

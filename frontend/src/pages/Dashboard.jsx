@@ -27,7 +27,7 @@ import {
   getDashboardMetrics,
   getMonthlyReports,
 } from '../services/reportService';
-import { getParts } from '../services/api';
+import { getNotificationsSummary, getParts } from '../services/api';
 import { getStoredAuthUser } from '../utils/authSession';
 
 // Convert API responses (array or single object) into a consistent chart row format
@@ -93,6 +93,7 @@ function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const user = getStoredAuthUser();
+  const [notifications, setNotifications] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -100,6 +101,18 @@ function Dashboard() {
     const loadDashboardData = async () => {
       setIsLoading(true);
       setErrorMessage('');
+
+      try {
+        const notif = await getNotificationsSummary();
+        if (!isMounted) return;
+        if (notif?.status === 401 || notif?.status === 403) {
+          setNotifications(null);
+        } else {
+          setNotifications(notif.data || null);
+        }
+      } catch (e) {
+        if (isMounted) setNotifications(null);
+      }
 
       try {
         const [monthlyReports, dashboardMetrics, partsResponse] = await Promise.all([
@@ -265,9 +278,15 @@ function Dashboard() {
         </div>
       ) : (
         <>
+          {notifications && notifications.lowStockCount > 0 && (
+            <div className="message-banner warning">
+              {`Low stock: ${notifications.lowStockCount} part(s) below threshold.`}
+            </div>
+          )}
           <section className="admin-metric-grid" aria-label="Admin overview metrics">
             {derivedSummaryCards.map((summaryCard, index) => {
               const Icon = metricIconMap[summaryCard.label] || FaChartLine;
+
 
               return (
                 <article

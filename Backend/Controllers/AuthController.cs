@@ -5,6 +5,7 @@ using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
 using System.Data.Common;
 using System.Security.Claims;
 
@@ -14,13 +15,18 @@ namespace Backend.Controllers
     [Route("api/auth")]
     public class AuthController : ControllerBase
     {
+        private static readonly TimeSpan ResendCooldown = TimeSpan.FromMinutes(1);
+        private static readonly ConcurrentDictionary<string, DateTime> ResendAttempts = new();
+
         private readonly AppDbContext _context;
         private readonly IJwtTokenService _jwtTokenService;
+        private readonly Backend.Services.EmailService _emailService;
 
-        public AuthController(AppDbContext context, IJwtTokenService jwtTokenService)
+        public AuthController(AppDbContext context, IJwtTokenService jwtTokenService, Backend.Services.EmailService emailService)
         {
             _context = context;
             _jwtTokenService = jwtTokenService;
+            _emailService = emailService;
         }
 
         [HttpPost("register")]
@@ -43,7 +49,8 @@ namespace Backend.Controllers
                 Email = normalizedEmail,
                 PasswordHash = passwordHash,
                 Role = "Customer",
-                Status = "Active"
+                Status = "Pending",
+                EmailVerified = false
             };
 
             var customerProfile = new CustomerProfile
@@ -61,27 +68,159 @@ namespace Backend.Controllers
                 && !string.IsNullOrWhiteSpace(dto.VehicleModel)
                 && dto.VehicleYear.HasValue)
             {
+                var lp = NormalizeLicensePlate(dto.LicensePlate);
+                if (!string.IsNullOrWhiteSpace(lp))
+                {
+                    var exists = await _context.CustomerVehicles
+                        .AnyAsync(v => v.LicensePlate.ToUpper() == lp.ToUpper());
+                    if (exists)
+                    {
+                        return Conflict(new { message = "License plate already registered." });
+                    }
+                }
+
                 customerProfile.Vehicles.Add(new CustomerVehicle
                 {
                     Make = (dto.VehicleMake ?? string.Empty).Trim(),
                     Model = (dto.VehicleModel ?? string.Empty).Trim(),
                     Year = dto.VehicleYear.Value,
-                    LicensePlate = (dto.LicensePlate ?? string.Empty).Trim()
+                    LicensePlate = lp
                 });
             }
 
             _context.CustomerProfiles.Add(customerProfile);
             await _context.SaveChangesAsync();
 
+            // generate a short numeric OTP and persist on the user
+            var rng = new Random();
+            var code = rng.Next(100000, 999999).ToString();
+            user.VerificationCode = code;
+            user.VerificationExpiresAt = DateTime.UtcNow.AddMinutes(15);
+            await _context.SaveChangesAsync();
+
+            // send OTP email
+            var subject = "Your GarageGo verification code";
+            var body = $"<p>Hello {customerProfile.Name},</p><p>Your verification code is <strong>{code}</strong>. It expires in 15 minutes.</p>";
+            try
+            {
+                await _emailService.SendEmailAsync(user.Email, subject, body);
+            }
+            catch
+            {
+                // don't reveal internals; log is already handled by EmailService
+            }
+
+            return Ok(new { message = "Verification code sent to your email. It expires in 15 minutes. Please verify to complete registration." });
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail([FromBody] DTOs.VerifyEmailDto dto)
+        {
+            var normalizedEmail = NormalizeEmail(dto.Email);
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                return BadRequest(new { message = "Email is required." });
+            }
+
+            var user = await _context.Users
+                .Include(u => u.CustomerProfile)
+                .ThenInclude(p => p!.Vehicles)
+                .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+            if (user == null)
+            {
+                return NotFound(new { message = "Account not found." });
+            }
+
+            if (user.EmailVerified)
+            {
+                return BadRequest(new { message = "Email already verified." });
+            }
+
+            if (string.IsNullOrWhiteSpace(user.VerificationCode) || user.VerificationExpiresAt == null || user.VerificationExpiresAt < DateTime.UtcNow)
+            {
+                return BadRequest(new { message = "Verification code expired or not found. Please request a new code. Codes are valid for 15 minutes after they are sent." });
+            }
+
+            if (!string.Equals(user.VerificationCode, dto.Code?.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { message = "Invalid verification code." });
+            }
+
+            // mark verified
+            user.EmailVerified = true;
+            user.VerificationCode = null;
+            user.VerificationExpiresAt = null;
+            user.Status = "Active";
+            await _context.SaveChangesAsync();
+
+            // generate token and return session
+            var sessionUser = await LoadAuthenticatedUserDtoAsync(user);
+            if (sessionUser == null)
+            {
+                return NotFound(new { message = "Customer profile is missing or incomplete." });
+            }
             var (token, expiresAtUtc) = _jwtTokenService.GenerateUserToken(user);
 
             return Ok(new AuthSessionResponseDto
             {
-                Message = "Registration successful.",
+                Message = "Email verified. Registration complete.",
                 Token = token,
                 ExpiresAtUtc = expiresAtUtc,
-                User = BuildAuthenticatedUserDto(user, customerProfile)
+                User = sessionUser
             });
+        }
+
+        [HttpPost("resend-verification")]
+        public async Task<IActionResult> ResendVerification([FromBody] DTOs.VerifyEmailDto dto)
+        {
+            var normalizedEmail = NormalizeEmail(dto.Email);
+            if (string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                return BadRequest(new { message = "Email is required." });
+            }
+
+            var user = await _context.Users.Include(u => u.CustomerProfile).FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+            if (user == null)
+            {
+                return NotFound(new { message = "Account not found." });
+            }
+
+            if (user.EmailVerified)
+            {
+                return BadRequest(new { message = "Email already verified." });
+            }
+
+            var cooldownKey = normalizedEmail;
+            var now = DateTime.UtcNow;
+            if (ResendAttempts.TryGetValue(cooldownKey, out var lastAttempt))
+            {
+                var elapsed = now - lastAttempt;
+                if (elapsed < ResendCooldown)
+                {
+                    var waitSeconds = (int)Math.Ceiling((ResendCooldown - elapsed).TotalSeconds);
+                    return StatusCode(429, new { message = $"Please wait {waitSeconds} seconds before requesting another code." });
+                }
+            }
+
+            // generate new code
+            var rng = new Random();
+            var code = rng.Next(100000, 999999).ToString();
+            user.VerificationCode = code;
+            user.VerificationExpiresAt = now.AddMinutes(15);
+            await _context.SaveChangesAsync();
+            ResendAttempts[cooldownKey] = now;
+
+            var subject = "Your GarageGo verification code";
+            var body = $"<p>Hello,</p><p>Your new verification code is <strong>{code}</strong>. It expires at {user.VerificationExpiresAt:HH:mm} UTC.</p>";
+            try
+            {
+                await _emailService.SendEmailAsync(user.Email, subject, body);
+            }
+            catch
+            {
+            }
+
+            return Ok(new { message = "Verification code re-sent to your email. It expires in 15 minutes." });
         }
 
         [HttpPost("login")]
@@ -99,6 +238,7 @@ namespace Backend.Controllers
 
             if (user == null
                 || !string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase)
+                || !user.EmailVerified
                 || !BCrypt.Net.BCrypt.Verify(dto.Password ?? string.Empty, user.PasswordHash))
             {
                 return Unauthorized(new { message = "Invalid email or password." });
@@ -302,6 +442,11 @@ namespace Backend.Controllers
             userId = 0;
 
             return userIdClaim != null && int.TryParse(userIdClaim.Value, out userId);
+        }
+
+        private static string NormalizeLicensePlate(string? licensePlate)
+        {
+            return (licensePlate ?? string.Empty).Trim().ToUpperInvariant();
         }
 
         private static AuthenticatedUserDto BuildAuthenticatedUserDto(

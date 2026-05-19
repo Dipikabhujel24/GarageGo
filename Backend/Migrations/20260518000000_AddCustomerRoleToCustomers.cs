@@ -8,20 +8,13 @@ namespace Backend.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "Role",
-                table: "Customers",
-                type: "character varying(30)",
-                maxLength: 30,
-                nullable: false,
-                defaultValue: "Customer");
+            // Use conditional SQL to avoid failure if the column already exists in the target database
+            migrationBuilder.Sql("ALTER TABLE \"Customers\" ADD COLUMN IF NOT EXISTS \"Role\" character varying(30) DEFAULT 'Customer' NOT NULL;");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Role",
-                table: "Customers");
+            migrationBuilder.Sql("ALTER TABLE \"Customers\" DROP COLUMN IF EXISTS \"Role\";");
         }
     }
 }

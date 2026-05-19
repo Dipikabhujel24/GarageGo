@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
+import { downloadCustomerHistoryPdf } from '../../services/customerFeatureService';
 import { clearAuthSession, getStoredToken } from '../../utils/authSession';
 import './CustomerHistory.css';
 
@@ -13,6 +14,7 @@ function CustomerHistory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('All');
   const [paymentFilter, setPaymentFilter] = useState('All');
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -46,7 +48,13 @@ function CustomerHistory() {
           throw new Error(getApiErrorMessage(data, 'Failed to load history records.'));
         }
 
-        setHistory(Array.isArray(data) ? data : []);
+        const records = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+            ? data.items
+            : [];
+
+        setHistory(records);
       } catch (err) {
         console.error('Service history fetch error:', err);
         setError(err.message || 'Failed to load history records.');
@@ -164,6 +172,35 @@ function CustomerHistory() {
     }
 
     return 'badge badge-payment badge-pending';
+  };
+
+  const canDownloadPdf = (record) => {
+    const historyType = (record.historyType || '').toLowerCase();
+    return Boolean(record.invoiceNumber) || historyType === 'purchase';
+  };
+
+  const handleDownloadPdf = async (record) => {
+    if (!canDownloadPdf(record)) {
+      return;
+    }
+
+    setDownloadingId(record.id);
+
+    try {
+      const pdfBlob = await downloadCustomerHistoryPdf(record.id);
+      const objectUrl = window.URL.createObjectURL(pdfBlob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = `garagego-history-${record.invoiceNumber || record.id}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      alert(err.message || 'Failed to download PDF.');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const showEmptyState = !loading && !error && history.length === 0;
@@ -293,6 +330,7 @@ function CustomerHistory() {
                     <th>Amount</th>
                     <th>Status</th>
                     <th>Invoice</th>
+                    <th>PDF</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -313,6 +351,20 @@ function CustomerHistory() {
                         <span className={paymentBadgeClass(record.paymentStatus)}>{record.paymentStatus || 'Unknown'}</span>
                       </td>
                       <td>{record.invoiceNumber || '—'}</td>
+                      <td>
+                        {canDownloadPdf(record) ? (
+                          <button
+                            type="button"
+                            className="history-pdf-button"
+                            onClick={() => handleDownloadPdf(record)}
+                            disabled={downloadingId === record.id}
+                          >
+                            {downloadingId === record.id ? 'Preparing...' : 'Download PDF'}
+                          </button>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -350,6 +402,17 @@ function CustomerHistory() {
                   </div>
 
                   <p className="mobile-card-description">{record.description || 'No description provided.'}</p>
+
+                  {canDownloadPdf(record) && (
+                    <button
+                      type="button"
+                      className="history-pdf-button history-pdf-button--mobile"
+                      onClick={() => handleDownloadPdf(record)}
+                      disabled={downloadingId === record.id}
+                    >
+                      {downloadingId === record.id ? 'Preparing...' : 'Download PDF'}
+                    </button>
+                  )}
                 </article>
               ))}
             </div>

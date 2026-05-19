@@ -83,3 +83,25 @@ export const sendInvoiceEmail = (payload) =>
     method: 'POST',
     body: JSON.stringify(payload),
   });
+
+export const getNotificationsSummary = async () => {
+  const token = getStoredToken();
+  const response = await fetch(`${API_BASE_URL}/notifications/summary`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    return { data: null, status: response.status };
+  }
+
+  const data = await readApiResponse(response);
+
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(data, `Request failed with status ${response.status}`));
+  }
+
+  return { data };
+};

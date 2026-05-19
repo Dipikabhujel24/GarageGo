@@ -50,5 +50,11 @@ namespace Backend.Models
         public ICollection<UnavailablePartRequest> UnavailablePartRequests { get; set; } = new List<UnavailablePartRequest>();
 
         public ICollection<ServiceReview> ServiceReviews { get; set; } = new List<ServiceReview>();
+
+        // Loyalty points accumulated by the customer
+        public int LoyaltyPoints { get; set; }
+
+        // When the customer was last notified about a loyalty milestone
+        public DateTime? LastLoyaltyNotifiedAt { get; set; }
     }
 }
