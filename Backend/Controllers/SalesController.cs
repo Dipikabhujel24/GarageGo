@@ -16,6 +16,84 @@ public class SalesController : ControllerBase
         _invoiceService = invoiceService;
     }
 
+    // ✅ GET ALL SALES HISTORY API
+    [HttpGet]
+    public IActionResult GetSales()
+    {
+        var sales = _context.Sales
+            .Select(s => new
+            {
+                s.Id,
+                s.CustomerId,
+                s.Date,
+                s.TotalAmount,
+                s.DiscountAmount,
+                s.FinalAmount,
+                s.LoyaltyDiscountApplied,
+                Items = s.Items.Select(i => new
+                {
+                    i.PartId,
+                    i.Quantity,
+                    i.Price
+                })
+            })
+            .OrderByDescending(s => s.Date)
+            .ToList();
+
+        return Ok(sales);
+    }
+
+    // ✅ GET SALE BY ID API
+    [HttpGet("{id}")]
+    public IActionResult GetSaleById(int id)
+    {
+        var sale = _context.Sales
+            .Where(s => s.Id == id)
+            .Select(s => new
+            {
+                s.Id,
+                s.CustomerId,
+                s.Date,
+                s.TotalAmount,
+                s.DiscountAmount,
+                s.FinalAmount,
+                s.LoyaltyDiscountApplied,
+                Items = s.Items.Select(i => new
+                {
+                    i.PartId,
+                    i.Quantity,
+                    i.Price
+                })
+            })
+            .FirstOrDefault();
+
+        if (sale == null)
+            return NotFound("Sale not found");
+
+        return Ok(sale);
+    }
+
+    // ✅ CUSTOMER PURCHASE HISTORY API
+    [HttpGet("customer/{customerId}")]
+    public IActionResult GetCustomerSales(int customerId)
+    {
+        var sales = _context.Sales
+            .Where(s => s.CustomerId == customerId)
+            .Select(s => new
+            {
+                s.Id,
+                s.Date,
+                s.TotalAmount,
+                s.DiscountAmount,
+                s.FinalAmount,
+                s.LoyaltyDiscountApplied
+            })
+            .OrderByDescending(s => s.Date)
+            .ToList();
+
+        return Ok(sales);
+    }
+
     // ✅ Sale API
     [HttpPost]
     public IActionResult CreateSale(CreateSaleDto dto)
@@ -55,14 +133,14 @@ public class SalesController : ControllerBase
         // ✅ Invoice Response
         var invoice = new
         {
-            SaleId = sale.Id,
-            Date = sale.Date,
-            Total = sale.TotalAmount,
-            Discount = sale.DiscountAmount,
-            FinalAmount = sale.FinalAmount,
-            LoyaltyApplied = sale.LoyaltyDiscountApplied,
-            Items = sale.Items
-        };
+                Id = sale.Id,
+                Date = sale.Date,
+                TotalAmount = sale.TotalAmount,
+                DiscountAmount = sale.DiscountAmount,
+                FinalAmount = sale.FinalAmount,
+                LoyaltyDiscountApplied = sale.LoyaltyDiscountApplied,
+                Items = sale.Items
+            };
 
         return Ok(invoice);
     }
