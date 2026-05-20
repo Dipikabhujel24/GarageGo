@@ -35,6 +35,8 @@ namespace Backend.DTOs
         public int VendorId { get; set; }
         public string VendorName { get; set; } = string.Empty;
         public string CompanyName { get; set; } = string.Empty;
+        public string VendorEmail { get; set; } = string.Empty;
+        public string VendorPhone { get; set; } = string.Empty;
         public string InvoiceNumber { get; set; } = string.Empty;
         public DateTime PurchaseDate { get; set; }
         public decimal TotalAmount { get; set; }
@@ -51,5 +53,12 @@ namespace Backend.DTOs
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal SubTotal { get; set; }
+    }
+
+    public class SendPurchaseInvoiceEmailDto
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
     }
 }

@@ -12,7 +12,10 @@ import {
   deletePurchaseInvoice,
   getPurchaseInvoice,
   getPurchaseInvoices,
+  sendPurchaseInvoiceEmail,
 } from '../services/purchaseInvoiceService';
+import { buildPurchaseInvoicePdf } from '../utils/purchaseInvoiceDocument';
+import './StaffSalesPage.css';
 
 const emptyItem = { partId: '', quantity: 1, unitPrice: '' };
 
@@ -41,6 +44,8 @@ function PurchaseInvoices() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [vendorEmail, setVendorEmail] = useState('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('success');
 
@@ -100,8 +105,69 @@ function PurchaseInvoices() {
     [form.items]
   );
 
+  const filteredInvoices = useMemo(() => {
+    const query = searchQuery.trim();
+
+    let list = invoices.filter((invoice) => {
+      if (vendorFilter !== 'all' && String(invoice.vendorId) !== vendorFilter) {
+        return false;
+      }
+
+      if (!isWithinDateRange(invoice.purchaseDate, dateFrom, dateTo)) {
+        return false;
+      }
+
+      if (query) {
+        const vendorName = invoice.vendorName || '';
+        const invoiceNumber = invoice.invoiceNumber || '';
+        const partNames = (invoice.items || [])
+          .map((item) => item.partName || '')
+          .join(' ');
+
+        if (searchField === 'vendor') {
+          if (!includesText(vendorName, query)) {
+            return false;
+          }
+        } else if (searchField === 'invoice') {
+          if (!includesText(invoiceNumber, query)) {
+            return false;
+          }
+        } else if (searchField === 'part') {
+          if (!includesText(partNames, query)) {
+            return false;
+          }
+        } else if (
+          !includesText(vendorName, query) &&
+          !includesText(invoiceNumber, query) &&
+          !includesText(partNames, query)
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    if (amountFilter === 'highest') {
+      list = sortItems(list, 'desc-amount', (invoice) => Number(invoice.totalAmount) || 0);
+    } else if (amountFilter === 'lowest') {
+      list = sortItems(list, 'asc-amount', (invoice) => Number(invoice.totalAmount) || 0);
+    }
+
+    return list;
+  }, [invoices, searchQuery, searchField, vendorFilter, amountFilter, dateFrom, dateTo]);
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSearchField('all');
+    setVendorFilter('all');
+    setAmountFilter('all');
+    setDateFrom('');
+    setDateTo('');
+  };
+
   const summary = useMemo(() => {
-    const totalStockPurchased = invoices.reduce(
+    const totalStockPurchased = filteredInvoices.reduce(
       (total, invoice) =>
         total +
         (invoice.items || []).reduce(
@@ -221,9 +287,58 @@ function PurchaseInvoices() {
     try {
       const response = await getPurchaseInvoice(invoice.id);
       setSelectedInvoice(response.data);
+      const emailFromVendor = vendors.find((vendor) => vendor.id === response.data?.vendorId)?.email;
+      setVendorEmail(response.data?.vendorEmail || emailFromVendor || '');
     } catch (error) {
       setMessage(error.message || 'Unable to open purchase invoice.');
       setMessageType('error');
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedInvoice) {
+      setVendorEmail('');
+      return;
+    }
+
+    const emailFromVendor = vendors.find((vendor) => vendor.id === selectedInvoice.vendorId)?.email;
+    setVendorEmail(selectedInvoice.vendorEmail || emailFromVendor || '');
+  }, [selectedInvoice, vendors]);
+
+  const handlePrintInvoice = () => {
+    window.print();
+  };
+
+  const handleDownloadPdf = () => {
+    if (!selectedInvoice) {
+      return;
+    }
+
+    buildPurchaseInvoicePdf(selectedInvoice);
+  };
+
+  const handleSendEmail = async () => {
+    if (!selectedInvoice) {
+      return;
+    }
+
+    const email = vendorEmail.trim();
+    if (!email) {
+      setMessage('Vendor email is required to send the purchase invoice.');
+      setMessageType('error');
+      return;
+    }
+
+    setIsEmailing(true);
+    try {
+      await sendPurchaseInvoiceEmail(selectedInvoice.id, { email });
+      setMessage('Purchase invoice emailed successfully.');
+      setMessageType('success');
+    } catch (error) {
+      setMessage(error.message || 'Failed to send purchase invoice email.');
+      setMessageType('error');
+    } finally {
+      setIsEmailing(false);
     }
   };
 
@@ -443,7 +558,7 @@ function PurchaseInvoices() {
               {!selectedInvoice ? (
                 <p className="inventory-empty-state">Select an invoice to view details.</p>
               ) : (
-                <div className="purchase-detail">
+                <div className="purchase-detail" id="purchase-invoice-print-area">
                   <div className="purchase-detail-header">
                     <div>
                       <p className="stat-label">Invoice</p>
@@ -478,6 +593,37 @@ function PurchaseInvoices() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  <div className="invoice-email purchase-invoice-email">
+                    <label className="field">
+                      <span className="field__label">Vendor Email</span>
+                      <input
+                        className="input-field"
+                        type="email"
+                        value={vendorEmail}
+                        onChange={(event) => setVendorEmail(event.target.value)}
+                        placeholder="vendor@example.com"
+                        disabled={isEmailing}
+                      />
+                    </label>
+                  </div>
+
+                  <div className="invoice-actions purchase-invoice-actions">
+                    <button className="btn btn--secondary" type="button" onClick={handlePrintInvoice}>
+                      Print Invoice
+                    </button>
+                    <button className="btn btn--secondary" type="button" onClick={handleDownloadPdf}>
+                      Download PDF
+                    </button>
+                    <button
+                      className="btn btn--primary"
+                      type="button"
+                      onClick={handleSendEmail}
+                      disabled={isEmailing}
+                    >
+                      {isEmailing ? 'Sending...' : 'Send Email'}
+                    </button>
                   </div>
                 </div>
               )}
@@ -554,7 +700,9 @@ function PurchaseInvoices() {
                   {filteredInvoices.length === 0 ? (
                     <tr>
                       <td className="empty-state" colSpan="5">
-                        No purchase invoices have been created yet.
+                        {invoices.length === 0
+                          ? 'No purchase invoices have been created yet.'
+                          : 'No purchase invoices match your search or filters.'}
                       </td>
                     </tr>
                   ) : (

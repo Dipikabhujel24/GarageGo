@@ -470,6 +470,23 @@
   border: 1px solid var(--border);
 }
 
+.purchase-invoice-email {
+  margin-top: 4px;
+}
+
+.purchase-invoice-email .field {
+  display: grid;
+  gap: 8px;
+}
+
+.purchase-invoice-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
 .purchase-list-card {
   margin-top: 0;
 }

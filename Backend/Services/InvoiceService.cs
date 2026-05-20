@@ -118,4 +118,58 @@ public class InvoiceService
             });
         }).GeneratePdf();
     }
+
+    public byte[] GeneratePurchaseInvoicePdf(Backend.Models.PurchaseInvoice invoice)
+    {
+        var vendorName = invoice.Vendor?.VendorName ?? "Vendor";
+        var companyName = invoice.Vendor?.CompanyName ?? string.Empty;
+
+        return Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Margin(40);
+
+                page.Content().Column(col =>
+                {
+                    col.Item().AlignCenter().Text("Purchase Invoice")
+                        .FontSize(26).Bold().FontColor(Colors.Blue.Darken3);
+
+                    col.Item().AlignCenter().Text("GarageGo Supplier Receipt")
+                        .FontSize(14).FontColor(Colors.Grey.Darken1);
+
+                    col.Item().PaddingVertical(16);
+
+                    col.Item().Text($"Invoice Number: {invoice.InvoiceNumber}");
+                    col.Item().Text($"Vendor: {vendorName}");
+                    col.Item().Text($"Company: {companyName}");
+                    col.Item().Text($"Date: {invoice.PurchaseDate:yyyy-MM-dd}");
+                    col.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                    col.Item().PaddingVertical(12);
+
+                    col.Item().Text("Items Purchased").FontSize(16).Bold();
+                    col.Item().PaddingVertical(8);
+
+                    foreach (var item in invoice.Items)
+                    {
+                        var partName = item.Part?.PartName ?? $"Part {item.PartId}";
+                        col.Item().Row(row =>
+                        {
+                            row.RelativeItem().Text(partName);
+                            row.RelativeItem().AlignCenter().Text($"Qty {item.Quantity}");
+                            row.RelativeItem().AlignRight().Text($"Rs {item.SubTotal:0.00}");
+                        });
+                        col.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten3);
+                    }
+
+                    col.Item().PaddingVertical(16);
+                    col.Item().Row(row =>
+                    {
+                        row.RelativeItem().Text("Total:").FontSize(18).Bold();
+                        row.RelativeItem().AlignRight().Text($"Rs {invoice.TotalAmount:0.00}").FontSize(18).Bold();
+                    });
+                });
+            });
+        }).GeneratePdf();
+    }
 }

@@ -15,15 +15,21 @@ namespace Backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly NotificationService _notificationService;
+        private readonly EmailService _emailService;
+        private readonly InvoiceService _invoiceService;
         private readonly ILogger<PurchaseInvoicesController> _logger;
 
         public PurchaseInvoicesController(
             AppDbContext context,
             NotificationService notificationService,
+            EmailService emailService,
+            InvoiceService invoiceService,
             ILogger<PurchaseInvoicesController> logger)
         {
             _context = context;
             _notificationService = notificationService;
+            _emailService = emailService;
+            _invoiceService = invoiceService;
             _logger = logger;
         }
 
@@ -40,6 +46,59 @@ namespace Backend.Controllers
                 .ToListAsync();
 
             return Ok(invoices.Select(MapInvoice));
+        }
+
+        [HttpPost("{id:int}/send-email")]
+        public async Task<IActionResult> SendPurchaseInvoiceEmail(int id, [FromBody] SendPurchaseInvoiceEmailDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Email))
+            {
+                return BadRequest(new { message = "Recipient email is required." });
+            }
+
+            var invoice = await _context.PurchaseInvoices
+                .AsNoTracking()
+                .Include(existingInvoice => existingInvoice.Vendor)
+                .Include(existingInvoice => existingInvoice.Items)
+                    .ThenInclude(item => item.Part)
+                .FirstOrDefaultAsync(existingInvoice => existingInvoice.Id == id);
+
+            if (invoice == null)
+            {
+                return NotFound(new { message = $"Purchase invoice with ID {id} was not found." });
+            }
+
+            var pdfBytes = _invoiceService.GeneratePurchaseInvoicePdf(invoice);
+            var vendorName = invoice.Vendor?.VendorName ?? "Vendor";
+
+            var body = $@"
+<h2 style='color:#5B2D82;'>GarageGo Purchase Invoice</h2>
+<p>Dear {vendorName},</p>
+<p>Please find attached purchase invoice <strong>{invoice.InvoiceNumber}</strong> from GarageGo.</p>
+<ul>
+    <li>Invoice Number: {invoice.InvoiceNumber}</li>
+    <li>Company: {invoice.Vendor?.CompanyName}</li>
+    <li>Date: {invoice.PurchaseDate:yyyy-MM-dd}</li>
+    <li>Total Amount: Rs {invoice.TotalAmount:0.00}</li>
+</ul>
+<p>Best regards,<br/><strong>GarageGo Team</strong></p>";
+
+            try
+            {
+                await _emailService.SendEmailWithAttachmentAsync(
+                    dto.Email.Trim(),
+                    $"GarageGo Purchase Invoice — {invoice.InvoiceNumber}",
+                    body,
+                    pdfBytes,
+                    $"Purchase-Invoice-{invoice.InvoiceNumber}.pdf");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to email purchase invoice {InvoiceId}.", invoice.Id);
+                return BadRequest(new { message = $"Email failed: {ex.Message}" });
+            }
+
+            return Ok(new { message = "Purchase invoice emailed successfully." });
         }
 
         [HttpGet("{id:int}")]
@@ -244,6 +303,8 @@ namespace Backend.Controllers
                 VendorId = invoice.VendorId,
                 VendorName = invoice.Vendor?.VendorName ?? string.Empty,
                 CompanyName = invoice.Vendor?.CompanyName ?? string.Empty,
+                VendorEmail = invoice.Vendor?.Email ?? string.Empty,
+                VendorPhone = invoice.Vendor?.Phone ?? string.Empty,
                 InvoiceNumber = invoice.InvoiceNumber,
                 PurchaseDate = invoice.PurchaseDate,
                 TotalAmount = invoice.TotalAmount,
