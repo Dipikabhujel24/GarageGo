@@ -1,20 +1,42 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import AdminDataToolbar from '../components/admin/AdminDataToolbar';
+import SecureForm from '../components/SecureForm';
+import { includesText, matchSearchFields } from '../utils/adminFilters';
+import {
+  emailInputAutofillProps,
+  newPasswordAutofillProps,
+  textInputAutofillProps,
+} from '../utils/formAutofill';
 import {
   addStaff,
   deleteStaff,
   extractApiErrorMessage,
   getStaff,
+  getStaffActivity,
   updateStaff,
+  updateStaffStatus,
 } from '../services/staffService';
+
+const GARAGE_STAFF_ROLES = [
+  'Sales Staff',
+  'Inventory Staff',
+  'Store Keeper',
+  'Cashier',
+  'Service Advisor',
+  'Mechanic / Technician',
+  'Purchase Officer',
+  'Accountant',
+  'Customer Support',
+  'Branch Manager',
+];
 
 const initialFormState = {
   name: '',
   email: '',
   password: '',
-  role: 'Staff',
+  role: 'Sales Staff',
+  status: 'Active',
 };
-
-const STAFF_ROLES = ['Admin', 'Staff'];
 
 function resolveStaffId(staffMember) {
   return staffMember.id ?? staffMember.staffId ?? staffMember.userId;
@@ -34,6 +56,7 @@ function normalizeStaffResponse(payload) {
 
 function StaffForm({
   formData,
+  fieldErrors,
   isEditing,
   isSubmitting,
   isDeleting,
@@ -42,7 +65,7 @@ function StaffForm({
   onCancelEdit,
 }) {
   return (
-    <form className="staff-form card" onSubmit={onSubmit}>
+    <SecureForm className="staff-form card" onSubmit={onSubmit}>
       <h3 className="staff-card-title card-title">
         {isEditing ? 'Edit Staff' : 'Add Staff'}
       </h3>
@@ -58,8 +81,16 @@ function StaffForm({
           type="text"
           value={formData.name}
           onChange={onFieldChange}
+          aria-invalid={Boolean(fieldErrors.name)}
+          aria-describedby={fieldErrors.name ? 'name-error' : undefined}
           required
+          {...textInputAutofillProps}
         />
+        {fieldErrors.name ? (
+          <p className="field-error" id="name-error">
+            {fieldErrors.name}
+          </p>
+        ) : null}
       </div>
 
       <div className="form-group">
@@ -73,8 +104,55 @@ function StaffForm({
           type="email"
           value={formData.email}
           onChange={onFieldChange}
+          aria-invalid={Boolean(fieldErrors.email)}
+          aria-describedby={fieldErrors.email ? 'email-error' : undefined}
           required
+          {...emailInputAutofillProps}
         />
+        {fieldErrors.email ? (
+          <p className="field-error" id="email-error">
+            {fieldErrors.email}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="form-group">
+        <label className="form-label" htmlFor="role">
+          Role
+        </label>
+        <select
+          id="role"
+          name="role"
+          className="input-field staff-role-select"
+          value={formData.role}
+          onChange={onFieldChange}
+          disabled={isSubmitting || isDeleting}
+          autoComplete="off"
+        >
+          {GARAGE_STAFF_ROLES.map((role) => (
+            <option key={role} value={role}>
+              {role}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label className="form-label" htmlFor="status">
+          Status
+        </label>
+        <select
+          id="status"
+          name="status"
+          className="input-field"
+          value={formData.status}
+          onChange={onFieldChange}
+          disabled={isSubmitting || isDeleting}
+          autoComplete="off"
+        >
+          <option value="Active">Active</option>
+          <option value="Disabled">Disabled</option>
+        </select>
       </div>
 
       <div className="form-group">
@@ -88,29 +166,17 @@ function StaffForm({
           type="password"
           value={formData.password}
           onChange={onFieldChange}
+          aria-invalid={Boolean(fieldErrors.password)}
+          aria-describedby={fieldErrors.password ? 'password-error' : undefined}
           required={!isEditing}
           placeholder={isEditing ? 'Leave blank to keep current password' : ''}
+          {...newPasswordAutofillProps}
         />
-      </div>
-
-      <div className="form-group">
-        <label className="form-label" htmlFor="role">
-          Role
-        </label>
-        <select
-          id="role"
-          name="role"
-          className="input-field"
-          value={formData.role}
-          onChange={onFieldChange}
-          required
-        >
-          {STAFF_ROLES.map((role) => (
-            <option key={role} value={role}>
-              {role}
-            </option>
-          ))}
-        </select>
+        {fieldErrors.password ? (
+          <p className="field-error" id="password-error">
+            {fieldErrors.password}
+          </p>
+        ) : null}
       </div>
 
       <div className="form-actions">
@@ -133,7 +199,7 @@ function StaffForm({
           </button>
         )}
       </div>
-    </form>
+    </SecureForm>
   );
 }
 
@@ -156,9 +222,10 @@ function StaffTable({
   isDeleting,
   onEdit,
   onDelete,
+  onToggleStatus,
 }) {
   if (isLoading) {
-    return <p className="status-text">Loading staff data...</p>;
+    return <p className="status-text">Loading...</p>;
   }
 
   return (
@@ -169,14 +236,15 @@ function StaffTable({
             <th>Name</th>
             <th>Email</th>
             <th>Role</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {staffList.length === 0 ? (
             <tr>
-              <td colSpan="4" className="empty-state">
-                No staff records found.
+              <td colSpan="5" className="empty-state">
+                No staff found.
               </td>
             </tr>
           ) : (
@@ -188,6 +256,7 @@ function StaffTable({
                   <td>{staffMember.name}</td>
                   <td>{staffMember.email}</td>
                   <td>{staffMember.role}</td>
+                  <td>{staffMember.status || 'Active'}</td>
                   <td>
                     <div className="button-group">
                       <button
@@ -197,6 +266,14 @@ function StaffTable({
                         disabled={isSubmitting || isDeleting}
                       >
                         Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="button button-secondary"
+                        onClick={() => onToggleStatus(staffMember)}
+                        disabled={isSubmitting || isDeleting}
+                      >
+                        {staffMember.status === 'Disabled' ? 'Enable' : 'Disable'}
                       </button>
                       <button
                         type="button"
@@ -219,23 +296,96 @@ function StaffTable({
 }
 
 function StaffManagement() {
+  // --- state: data & UI flags ---
   const [staffList, setStaffList] = useState([]);
+  const [activityList, setActivityList] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [recencyFilter, setRecencyFilter] = useState('all');
+
+  // --- state: form ---
   const [formData, setFormData] = useState(initialFormState);
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  // --- state: activity flags ---
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // --- misc ---
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
 
   const isEditing = useMemo(() => editingId !== null, [editingId]);
 
-  const loadStaffList = async () => {
-    setIsLoading(true);
+  const staffSearchGetters = useMemo(
+    () => ({
+      name: (staffMember) => staffMember.name,
+      email: (staffMember) => staffMember.email,
+      role: (staffMember) => staffMember.role,
+    }),
+    []
+  );
 
+  const filteredStaffList = useMemo(() => {
+    let list = [...staffList];
+
+    if (statusFilter === 'active') {
+      list = list.filter((staffMember) => (staffMember.status || 'Active') === 'Active');
+    } else if (statusFilter === 'disabled') {
+      list = list.filter((staffMember) => (staffMember.status || 'Active') !== 'Active');
+    } else if (statusFilter === 'admin') {
+      list = list.filter((staffMember) => String(staffMember.role || '').toLowerCase() === 'admin');
+    } else if (statusFilter === 'staff') {
+      list = list.filter((staffMember) => {
+        const role = String(staffMember.role || '').toLowerCase();
+        return role !== 'admin' && role !== '';
+      });
+    }
+
+    if (recencyFilter === 'recent') {
+      list = [...list]
+        .sort((left, right) => {
+          const leftDate = new Date(left.createdAt || left.occurredAt || 0).getTime();
+          const rightDate = new Date(right.createdAt || right.occurredAt || 0).getTime();
+          return rightDate - leftDate || (resolveStaffId(right) || 0) - (resolveStaffId(left) || 0);
+        })
+        .slice(0, 15);
+    }
+
+    if (searchQuery.trim()) {
+      const fields = searchField === 'all' ? ['all'] : [searchField];
+      list = list.filter((staffMember) =>
+        matchSearchFields(staffMember, searchQuery, fields, staffSearchGetters)
+      );
+    }
+
+    if (roleFilter !== 'all') {
+      list = list.filter((staffMember) => includesText(staffMember.role, roleFilter));
+    }
+
+    return list;
+  }, [searchQuery, searchField, roleFilter, statusFilter, recencyFilter, staffList, staffSearchGetters]);
+
+  const handleClearStaffFilters = () => {
+    setSearchQuery('');
+    setSearchField('all');
+    setRoleFilter('all');
+    setStatusFilter('all');
+    setRecencyFilter('all');
+  };
+
+  const loadStaffList = async () => {
+    // Fetch staff list from the API and update UI flags.
+    setIsLoading(true);
     try {
       const staffResponse = await getStaff();
+      const activityResponse = await getStaffActivity();
       setStaffList(normalizeStaffResponse(staffResponse));
+      setActivityList(normalizeStaffResponse(activityResponse));
     } catch (error) {
       setMessage(
         extractApiErrorMessage(error, 'Failed to load staff. Please try again.')
@@ -256,15 +406,39 @@ function StaffManagement() {
       ...prev,
       [name]: value,
     }));
+
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        [name]: '',
+      }));
+    }
   };
 
   const resetForm = () => {
     setFormData(initialFormState);
     setEditingId(null);
+    setFieldErrors({});
+  };
+
+  // Validate the form; set `fieldErrors` for any issues and return boolean.
+  const validateForm = () => {
+    const nextFieldErrors = {};
+
+    if (!formData.name.trim()) nextFieldErrors.name = 'Name is required.';
+    if (!formData.email.trim()) nextFieldErrors.email = 'Email is required.';
+    if (!isEditing && !formData.password.trim())
+      nextFieldErrors.password = 'Password is required.';
+
+    setFieldErrors(nextFieldErrors);
+    return Object.keys(nextFieldErrors).length === 0;
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    // Validate inputs before calling API.
+    if (!validateForm()) return;
 
     setIsSubmitting(true);
     setMessage('');
@@ -274,6 +448,7 @@ function StaffManagement() {
       name: formData.name.trim(),
       email: formData.email.trim(),
       role: formData.role,
+      status: formData.status,
     };
 
     // Only send password during create or when it is explicitly changed during edit.
@@ -317,10 +492,40 @@ function StaffManagement() {
       name: staffMember.name ?? '',
       email: staffMember.email ?? '',
       password: '',
-      role: staffMember.role ?? 'Staff',
+      role: staffMember.role === 'Staff' ? 'Sales Staff' : staffMember.role ?? 'Sales Staff',
+      status: staffMember.status ?? 'Active',
     });
     setMessage('Editing mode enabled. Update details and click Save Changes.');
     setMessageType('success');
+  };
+
+  const handleToggleStatus = async (staffMember) => {
+    const staffId = resolveStaffId(staffMember);
+
+    if (staffId === undefined || staffId === null) {
+      setMessage('Unable to update this record because the staff id is missing.');
+      setMessageType('error');
+      return;
+    }
+
+    const nextStatus = staffMember.status === 'Disabled' ? 'Active' : 'Disabled';
+    setIsSubmitting(true);
+    setMessage('');
+    setMessageType('');
+
+    try {
+      await updateStaffStatus(staffId, nextStatus);
+      setMessage(`Staff member ${nextStatus === 'Disabled' ? 'disabled' : 'enabled'} successfully.`);
+      setMessageType('success');
+      await loadStaffList();
+    } catch (error) {
+      setMessage(
+        extractApiErrorMessage(error, 'Unable to update staff status right now.')
+      );
+      setMessageType('error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = async (staffMember) => {
@@ -369,14 +574,15 @@ function StaffManagement() {
       <div className="page-header-card card">
         <h2 className="section-title card-title">Staff Management</h2>
         <p className="section-copy">
-          Create and manage staff records for GarageGo administrators and team
-          members.
+          Create and manage staff login accounts that are issued by GarageGo
+          administrators.
         </p>
       </div>
 
       <div className="staff-layout">
         <StaffForm
           formData={formData}
+          fieldErrors={fieldErrors}
           isEditing={isEditing}
           isSubmitting={isSubmitting}
           isDeleting={isDeleting}
@@ -386,18 +592,122 @@ function StaffManagement() {
         />
 
         <div className="table-card card">
-          <h3 className="staff-card-title card-title">Staff Directory</h3>
+          <div className="table-card-header">
+            <div>
+              <h3 className="staff-card-title card-title">Staff Directory</h3>
+              <p className="section-copy staff-directory-copy">
+                Search staff by name or email.
+              </p>
+            </div>
+          </div>
+
+          <AdminDataToolbar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Search staff..."
+            searchField={searchField}
+            onSearchFieldChange={setSearchField}
+            searchFields={[
+              { value: 'all', label: 'All fields' },
+              { value: 'name', label: 'Staff name' },
+              { value: 'email', label: 'Email' },
+              { value: 'role', label: 'Role' },
+            ]}
+            selects={[
+              {
+                id: 'status',
+                label: 'Filter',
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { value: 'all', label: 'All staff' },
+                  { value: 'active', label: 'Active staff' },
+                  { value: 'admin', label: 'Admins' },
+                  { value: 'staff', label: 'Staff members' },
+                  { value: 'disabled', label: 'Disabled' },
+                ],
+              },
+              {
+                id: 'recency',
+                label: 'Recency',
+                value: recencyFilter,
+                onChange: setRecencyFilter,
+                options: [
+                  { value: 'all', label: 'All time' },
+                  { value: 'recent', label: 'Recently added' },
+                ],
+              },
+              {
+                id: 'role',
+                label: 'Role',
+                value: roleFilter,
+                onChange: setRoleFilter,
+                options: [
+                  { value: 'all', label: 'All roles' },
+                  ...GARAGE_STAFF_ROLES.map((role) => ({ value: role, label: role })),
+                ],
+              },
+            ]}
+            onClear={handleClearStaffFilters}
+            resultText={`Showing ${filteredStaffList.length} of ${staffList.length} staff`}
+          />
+
           <StatusMessage message={message} type={messageType} />
           <StaffTable
-            staffList={staffList}
+            staffList={filteredStaffList}
             isLoading={isLoading}
             isSubmitting={isSubmitting}
             isDeleting={isDeleting}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onToggleStatus={handleToggleStatus}
           />
         </div>
       </div>
+
+      <article className="table-card card staff-activity-card">
+        <div className="table-card-header">
+          <div>
+            <h3 className="staff-card-title card-title">Staff Activity</h3>
+            <p className="section-copy staff-directory-copy">
+              Recent account status and role activity from staff records.
+            </p>
+          </div>
+        </div>
+
+        <div className="table-container">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Staff</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Activity</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activityList.length === 0 ? (
+                <tr>
+                  <td className="empty-state" colSpan="5">
+                    No staff activity found.
+                  </td>
+                </tr>
+              ) : (
+                activityList.map((activity) => (
+                  <tr key={`${activity.staffId}-${activity.email}`}>
+                    <td>{activity.name}</td>
+                    <td>{activity.role}</td>
+                    <td>{activity.status}</td>
+                    <td>{activity.activity}</td>
+                    <td>{activity.occurredAt ? new Date(activity.occurredAt).toLocaleDateString() : '-'}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </article>
     </section>
   );
 }

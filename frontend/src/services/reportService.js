@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { API_BASE } from '../config/api';
+import { getStoredToken } from '../utils/authSession';
 
-const REPORTS_API_BASE_URL =
-  process.env.REACT_APP_API_URL?.trim() || 'https://localhost:7086';
+const REPORTS_API_BASE_URL = API_BASE;
 
 const reportsApi = axios.create({
   baseURL: `${REPORTS_API_BASE_URL}/api/reports`,
@@ -9,6 +10,17 @@ const reportsApi = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+reportsApi.interceptors.request.use((config) => {
+  const token = getStoredToken() || localStorage.getItem('token') || '';
+
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
 });
 
 export function extractReportApiError(error, fallbackMessage) {
@@ -40,5 +52,35 @@ export async function getMonthlyReports() {
 
 export async function getYearlyReports() {
   const response = await reportsApi.get('/yearly');
+  return response.data;
+}
+
+export async function getSalesTrends() {
+  const response = await reportsApi.get('/sales-trends');
+  return response.data;
+}
+
+export async function getTopSellingParts() {
+  const response = await reportsApi.get('/top-selling-parts');
+  return response.data;
+}
+
+export async function getDashboardMetrics() {
+  const response = await reportsApi.get('/dashboard-metrics');
+  return response.data;
+}
+
+export async function getRegularCustomerReports() {
+  const response = await reportsApi.get('/customers/regulars');
+  return response.data;
+}
+
+export async function getHighSpenderCustomerReports() {
+  const response = await reportsApi.get('/customers/high-spenders');
+  return response.data;
+}
+
+export async function getPendingCreditCustomerReports() {
+  const response = await reportsApi.get('/customers/pending-credits');
   return response.data;
 }

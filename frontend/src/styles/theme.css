@@ -1,12 +1,13 @@
+/* Brand tokens — canonical palette lives in index.css */
 :root {
-  --primary-start: #1e3c72;
-  --primary-end: #2a5298;
-  --sky-blue: #87a8dc;
-  --light-blue: #add8e6;
-  --surface: #f5f9ff;
-  --card-bg: #ffffff;
-  --border: #e3eaf5;
-  --text-main: #1f2a44;
+  --primary-start: var(--primary-dark);
+  --primary-end: var(--secondary-purple);
+  --sky-blue: var(--soft-lavender);
+  --light-blue: var(--light-pink-accent);
+  --surface: var(--bg-light);
+  --card-bg: var(--card-white);
+  --border: var(--border-soft);
+  --text-main: var(--text-dark);
   --white: #ffffff;
   --input-bg: #ffffff;
 }

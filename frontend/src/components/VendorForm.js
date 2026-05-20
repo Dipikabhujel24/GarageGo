@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import SecureForm from './SecureForm';
+import { emailInputAutofillProps, textInputAutofillProps } from '../utils/formAutofill';
 
 const initialForm = {
   vendorName: '',
@@ -6,6 +8,7 @@ const initialForm = {
   phone: '',
   email: '',
   address: '',
+  status: 'Active',
 };
 
 function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
@@ -27,6 +30,7 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
       phone: selectedVendor.phone || '',
       email: selectedVendor.email || '',
       address: selectedVendor.address || '',
+      status: selectedVendor.status || 'Active',
     });
     setError('');
   }, [selectedVendor]);
@@ -60,70 +64,110 @@ function VendorForm({ selectedVendor, onCancelEdit, onCreate, onUpdate }) {
   };
 
   return (
-    <form className="form-grid" onSubmit={handleSubmit}>
-      {error && <div className="form-error span-two">{error}</div>}
-      <label className="field">
+    <SecureForm className="inventory-form-grid" onSubmit={handleSubmit} includePassword={false}>
+      {error && (
+        <div className="message-banner error inventory-form-error inventory-span-two">
+          {error}
+        </div>
+      )}
+
+      <label className="inventory-field">
         <span>Vendor Name</span>
         <input
+          className="input-field"
           name="vendorName"
           value={form.vendorName}
           onChange={handleChange}
           placeholder="Enter vendor name"
           required
+          {...textInputAutofillProps}
         />
       </label>
-      <label className="field">
+
+      <label className="inventory-field">
         <span>Company Name</span>
         <input
+          className="input-field"
           name="companyName"
           value={form.companyName}
           onChange={handleChange}
           placeholder="Enter company name"
           required
+          {...textInputAutofillProps}
         />
       </label>
-      <label className="field">
+
+      <label className="inventory-field">
         <span>Phone</span>
         <input
+          className="input-field"
           name="phone"
           value={form.phone}
           onChange={handleChange}
           placeholder="Enter phone number"
           required
+          {...textInputAutofillProps}
         />
       </label>
-      <label className="field">
+
+      <label className="inventory-field">
         <span>Email</span>
         <input
+          className="input-field"
           name="email"
           type="email"
           value={form.email}
           onChange={handleChange}
           placeholder="Enter email address"
           required
+          {...emailInputAutofillProps}
         />
       </label>
-      <label className="field span-two">
+
+      <label className="inventory-field inventory-span-two">
         <span>Address</span>
         <input
+          className="input-field"
           name="address"
           value={form.address}
           onChange={handleChange}
           placeholder="Enter business address"
           required
+          {...textInputAutofillProps}
         />
       </label>
-      <div className="form-actions span-two">
+
+      <label className="inventory-field">
+        <span>Status</span>
+        <select
+          className="input-field"
+          name="status"
+          value={form.status}
+          onChange={handleChange}
+          required
+        >
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </label>
+
+      <div className="inventory-action-row inventory-span-two">
         {isEditing && (
-          <button className="secondary-button" type="button" onClick={onCancelEdit} disabled={isSubmitting}>
+          <button
+            className="button button-secondary"
+            type="button"
+            onClick={onCancelEdit}
+            disabled={isSubmitting}
+          >
             Cancel
           </button>
         )}
-        <button className="primary-button" type="submit" disabled={isSubmitting}>
+
+        <button className="button button-primary" type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Saving...' : isEditing ? 'Update Vendor' : 'Add Vendor'}
         </button>
       </div>
-    </form>
+    </SecureForm>
   );
 }
 

@@ -1,25 +1,36 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+import { API_BASE, getApiErrorMessage, readApiResponse } from '../config/api';
+import { getStoredToken } from '../utils/authSession';
 
-const request = async (path, options = {}) => {
+const API_BASE_URL = `${API_BASE}/api`;
+
+export const request = async (path, options = {}) => {
+  const token = getStoredToken() || localStorage.getItem('token') || '';
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
-    ...options,
   });
 
+  const data = await readApiResponse(response);
+
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || `Request failed with status ${response.status}`);
+    throw new Error(
+      getApiErrorMessage(data, `Request failed with status ${response.status}`)
+    );
   }
 
   if (response.status === 204) {
     return { data: null };
   }
 
-  return { data: await response.json() };
+  return { data };
 };
+
+export const extractApiError = (error, fallbackMessage = 'Request failed') =>
+  error?.message || fallbackMessage;
 
 export const getVendors = () => request('/vendors');
 
@@ -58,3 +69,45 @@ export const deletePart = (id) =>
   request(`/parts/${id}`, {
     method: 'DELETE',
   });
+
+export const getSalesCatalog = () => request('/sales/catalog');
+
+export const getSales = () => request('/sales');
+
+export const getSaleById = (id) => request(`/sales/${id}`);
+
+export const getCustomerSales = (customerId) => request(`/sales/customer/${customerId}`);
+
+export const createSale = (data) =>
+  request('/sales', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+
+export const sendInvoiceEmail = (payload) =>
+  request('/sales/send-email', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const getNotificationsSummary = async () => {
+  const token = getStoredToken();
+  const response = await fetch(`${API_BASE_URL}/notifications/summary`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    return { data: null, status: response.status };
+  }
+
+  const data = await readApiResponse(response);
+
+  if (!response.ok) {
+    throw new Error(getApiErrorMessage(data, `Request failed with status ${response.status}`));
+  }
+
+  return { data };
+};

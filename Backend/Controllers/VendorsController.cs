@@ -1,126 +1,135 @@
+using Backend.Data;
+using Backend.Models;
+using Backend.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-[ApiController]
-[Route("api/[controller]")]
-public class VendorsController : ControllerBase
+namespace Backend.Controllers
 {
-    private readonly AppDbContext _context;
-    private readonly EmailService _emailService;
-    private readonly ILogger<VendorsController> _logger;
-
-    public VendorsController(
-        AppDbContext context,
-        EmailService emailService,
-        ILogger<VendorsController> logger)
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize(Roles = "Admin,Staff,Sales Staff,Inventory Staff,Store Keeper,Cashier,Service Advisor,Mechanic / Technician,Purchase Officer,Accountant,Customer Support,Branch Manager,Receptionist")]
+    public class VendorsController : ControllerBase
     {
-        _context = context;
-        _emailService = emailService;
-        _logger = logger;
-    }
+        private readonly AppDbContext _context;
+        private readonly EmailService _emailService;
+        private readonly ILogger<VendorsController> _logger;
 
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<Vendor>>> GetVendors()
-    {
-        return Ok(await _context.Vendors
-            .Include(vendor => vendor.Parts)
-            .ToListAsync());
-    }
-
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<Vendor>> GetVendor(int id)
-    {
-        var vendor = await _context.Vendors
-            .Include(vendor => vendor.Parts)
-            .FirstOrDefaultAsync(vendor => vendor.Id == id);
-
-        if (vendor == null)
+        public VendorsController(
+            AppDbContext context,
+            EmailService emailService,
+            ILogger<VendorsController> logger)
         {
-            return NotFound($"Vendor with ID {id} was not found.");
+            _context = context;
+            _emailService = emailService;
+            _logger = logger;
         }
 
-        return Ok(vendor);
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<Vendor>> CreateVendor(Vendor vendor)
-    {
-        if (!ModelState.IsValid)
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<Vendor>>> GetVendors()
         {
-            return BadRequest(ModelState);
+            return Ok(await _context.Vendors
+                .Include(vendor => vendor.Parts)
+                .ToListAsync());
         }
 
-        vendor.Id = 0;
-        vendor.CreatedAt = DateTime.UtcNow;
-
-        _context.Vendors.Add(vendor);
-        await _context.SaveChangesAsync();
-
-        try
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<Vendor>> GetVendor(int id)
         {
-            await _emailService.SendEmailAsync(
-                vendor.Email,
-                "Vendor Registration Successful",
-                $"Hello {vendor.VendorName}, you have been successfully registered in GarageGo.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send registration email to vendor {VendorId}.", vendor.Id);
+            var vendor = await _context.Vendors
+                .Include(existingVendor => existingVendor.Parts)
+                .FirstOrDefaultAsync(existingVendor => existingVendor.Id == id);
+
+            if (vendor == null)
+            {
+                return NotFound($"Vendor with ID {id} was not found.");
+            }
+
+            return Ok(vendor);
         }
 
-        return CreatedAtAction(nameof(GetVendor), new { id = vendor.Id }, vendor);
-    }
-
-    [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateVendor(int id, Vendor vendor)
-    {
-        if (id != vendor.Id)
+        [HttpPost]
+        public async Task<ActionResult<Vendor>> CreateVendor(Vendor vendor)
         {
-            return BadRequest("Route ID does not match vendor ID.");
-        }
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-        if (!ModelState.IsValid)
-        {
-            return BadRequest(ModelState);
-        }
+            vendor.Id = 0;
+            vendor.CreatedAt = DateTime.UtcNow;
 
-        var existingVendor = await _context.Vendors.FindAsync(id);
-        if (existingVendor == null)
-        {
-            return NotFound($"Vendor with ID {id} was not found.");
-        }
-
-        existingVendor.VendorName = vendor.VendorName;
-        existingVendor.CompanyName = vendor.CompanyName;
-        existingVendor.Phone = vendor.Phone;
-        existingVendor.Email = vendor.Email;
-        existingVendor.Address = vendor.Address;
-
-        await _context.SaveChangesAsync();
-
-        return NoContent();
-    }
-
-    [HttpDelete("{id:int}")]
-    public async Task<IActionResult> DeleteVendor(int id)
-    {
-        var vendor = await _context.Vendors.FindAsync(id);
-        if (vendor == null)
-        {
-            return NotFound($"Vendor with ID {id} was not found.");
-        }
-
-        _context.Vendors.Remove(vendor);
-
-        try
-        {
+            _context.Vendors.Add(vendor);
             await _context.SaveChangesAsync();
-        }
-        catch (DbUpdateException)
-        {
-            return BadRequest("Vendor cannot be deleted while parts are assigned to it.");
+
+            try
+            {
+                await _emailService.SendEmailAsync(
+                    vendor.Email,
+                    "GarageGo Vendor Record Created",
+                    $"Hello {vendor.VendorName}, your supplier profile has been added to GarageGo.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send registration email to vendor {VendorId}.", vendor.Id);
+            }
+
+            return CreatedAtAction(nameof(GetVendor), new { id = vendor.Id }, vendor);
         }
 
-        return NoContent();
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> UpdateVendor(int id, Vendor vendor)
+        {
+            if (id != vendor.Id)
+            {
+                return BadRequest("Route ID does not match vendor ID.");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var existingVendor = await _context.Vendors.FindAsync(id);
+            if (existingVendor == null)
+            {
+                return NotFound($"Vendor with ID {id} was not found.");
+            }
+
+            existingVendor.VendorName = vendor.VendorName;
+            existingVendor.CompanyName = vendor.CompanyName;
+            existingVendor.Phone = vendor.Phone;
+            existingVendor.Email = vendor.Email;
+            existingVendor.Address = vendor.Address;
+            existingVendor.Status = vendor.Status;
+
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteVendor(int id)
+        {
+            var vendor = await _context.Vendors.FindAsync(id);
+            if (vendor == null)
+            {
+                return NotFound($"Vendor with ID {id} was not found.");
+            }
+
+            _context.Vendors.Remove(vendor);
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                return BadRequest("Vendor cannot be deleted while parts are assigned to it.");
+            }
+
+            return NoContent();
+        }
     }
 }

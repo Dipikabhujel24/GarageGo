@@ -1,7 +1,7 @@
 import axios from 'axios';
+import { API_BASE } from '../config/api';
 
-const STAFF_API_BASE_URL =
-  process.env.REACT_APP_API_URL?.trim() || 'https://localhost:7086';
+const STAFF_API_BASE_URL = API_BASE;
 
 const staffApi = axios.create({
   baseURL: `${STAFF_API_BASE_URL}/api/staff`,
@@ -9,6 +9,17 @@ const staffApi = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+});
+
+staffApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
 });
 
 export function extractApiErrorMessage(error, fallbackMessage) {
@@ -40,6 +51,16 @@ export async function addStaff(payload) {
 
 export async function updateStaff(staffId, payload) {
   const response = await staffApi.put(`/${staffId}`, payload);
+  return response.data;
+}
+
+export async function updateStaffStatus(staffId, status) {
+  const response = await staffApi.patch(`/${staffId}/status`, { status });
+  return response.data;
+}
+
+export async function getStaffActivity() {
+  const response = await staffApi.get('/activity');
   return response.data;
 }
 
