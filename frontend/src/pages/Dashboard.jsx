@@ -163,7 +163,10 @@ function Dashboard() {
         { label: 'Total Vendors', value: formatNumber(metrics.totalVendors), tone: 'vendor' },
         { label: 'Total Parts', value: formatNumber(metrics.totalParts), tone: 'parts' },
         { label: 'Low Stock Items', value: formatNumber(metrics.lowStockItems), tone: 'warning' },
-        { label: 'Pending Credits', value: formatCurrency(metrics.pendingCredits ?? 0), tone: 'credit' },
+        { label: 'Pending Credits', value: formatCurrency(metrics.totalPendingCredit ?? metrics.pendingCredits ?? 0), tone: 'credit' },
+        { label: 'Credit Invoices', value: formatNumber(metrics.totalCreditInvoices ?? 0), tone: 'credit' },
+        { label: 'Overdue Customers', value: formatNumber(metrics.totalOverdueCustomers ?? 0), tone: 'warning' },
+        { label: 'Top Customer', value: metrics.topCustomerName || '—', tone: 'people' },
       ];
     }
 

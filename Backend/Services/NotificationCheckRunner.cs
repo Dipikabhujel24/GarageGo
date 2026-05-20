@@ -10,17 +10,20 @@ public class NotificationCheckRunner
     private readonly AppDbContext _db;
     private readonly EmailService _email;
     private readonly NotificationService _notifications;
+    private readonly OverdueCreditService _overdueCredits;
     private readonly ILogger<NotificationCheckRunner> _logger;
 
     public NotificationCheckRunner(
         AppDbContext db,
         EmailService email,
         NotificationService notifications,
+        OverdueCreditService overdueCredits,
         ILogger<NotificationCheckRunner> logger)
     {
         _db = db;
         _email = email;
         _notifications = notifications;
+        _overdueCredits = overdueCredits;
         _logger = logger;
     }
 
@@ -63,10 +66,20 @@ public class NotificationCheckRunner
             }
         }
 
+        var saleOverdue = await _overdueCredits.ProcessOverdueSalesAsync(ct);
+        result.OverdueCreditsProcessed += saleOverdue.Processed;
+        result.CreditEmailsSent += saleOverdue.EmailsSent;
+        result.EmailsSentTo.AddRange(saleOverdue.EmailsSentTo);
+        result.Errors.AddRange(saleOverdue.Errors);
+
         var cutoff = now.AddMonths(-1);
         var overdueCandidates = await _db.ServiceHistories
             .Include(h => h.Customer)
-            .Where(h => h.PaymentStatus != null && h.ReminderSentAt == null && h.ServiceDate <= cutoff)
+            .Where(h =>
+                h.RelatedSaleId == null
+                && h.PaymentStatus != null
+                && h.ReminderSentAt == null
+                && h.ServiceDate <= cutoff)
             .ToListAsync(ct);
 
         var overdue = overdueCandidates

@@ -12,6 +12,8 @@ namespace Backend.DTOs
         public decimal Amount { get; set; }
         public string PaymentStatus { get; set; } = string.Empty;
         public string? InvoiceNumber { get; set; }
+        /// <summary>Populated when this history row mirrors a staff sales checkout.</summary>
+        public int? RelatedSaleId { get; set; }
         // Optional URL where the invoice PDF can be retrieved (if available)
         public string? InvoiceUrl { get; set; }
         public DateTime ServiceDate { get; set; }

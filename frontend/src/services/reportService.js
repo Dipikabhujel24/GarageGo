@@ -84,3 +84,33 @@ export async function getPendingCreditCustomerReports() {
   const response = await reportsApi.get('/customers/pending-credits');
   return response.data;
 }
+
+export async function getCustomerReportsSummary() {
+  const response = await reportsApi.get('/customers/summary');
+  return response.data;
+}
+
+function downloadBlob(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportPendingCreditsCsv() {
+  const response = await reportsApi.get('/customers/pending-credits/export/csv', {
+    responseType: 'blob',
+  });
+  downloadBlob(response.data, 'pending-credits.csv');
+}
+
+export async function exportPendingCreditsPdf() {
+  const response = await reportsApi.get('/customers/pending-credits/export/pdf', {
+    responseType: 'blob',
+  });
+  downloadBlob(response.data, 'pending-credits.pdf');
+}

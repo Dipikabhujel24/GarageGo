@@ -288,6 +288,7 @@ function CustomerHistory() {
                 <option value="Paid">Paid</option>
                 <option value="Pending">Pending</option>
                 <option value="Credit">Credit</option>
+                <option value="Partial">Partial</option>
               </select>
             </div>
           </div>

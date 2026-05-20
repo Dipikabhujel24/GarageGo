@@ -5,7 +5,6 @@ using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Text;
 
 namespace Backend.Controllers
 {
@@ -18,6 +17,7 @@ namespace Backend.Controllers
         private readonly EmailService _emailService;
         private readonly InvoiceService _invoiceService;
         private readonly NotificationService _notificationService;
+        private readonly SalesService _salesService;
         private readonly IConfiguration _configuration;
 
         public SalesController(
@@ -25,12 +25,14 @@ namespace Backend.Controllers
             EmailService emailService,
             InvoiceService invoiceService,
             NotificationService notificationService,
+            SalesService salesService,
             IConfiguration configuration)
         {
             _context = context;
             _emailService = emailService;
             _invoiceService = invoiceService;
             _notificationService = notificationService;
+            _salesService = salesService;
             _configuration = configuration;
         }
 
@@ -132,96 +134,28 @@ namespace Backend.Controllers
         [HttpPost]
         public async Task<ActionResult<SaleInvoiceDto>> CreateSale([FromBody] CreateSaleDto dto)
         {
-            if (dto.Items == null || dto.Items.Count == 0)
+            try
             {
-                return BadRequest(new { message = "Add at least one part before saving the sale." });
-            }
+                var invoice = await _salesService.CreateSaleAsync(dto);
 
-            var customerExists = await _context.CustomerProfiles.AnyAsync(customer => customer.Id == dto.CustomerId);
-            if (!customerExists)
-            {
-                return NotFound(new { message = $"Customer with ID {dto.CustomerId} was not found." });
-            }
-
-            var requestedPartIds = dto.Items.Select(item => item.PartId).Distinct().ToList();
-            var parts = await _context.Parts
-                .Include(part => part.Vendor)
-                .Where(part => requestedPartIds.Contains(part.Id))
-                .ToListAsync();
-
-            var partsById = parts.ToDictionary(part => part.Id);
-            var missingPartIds = requestedPartIds.Where(partId => !partsById.ContainsKey(partId)).ToList();
-            if (missingPartIds.Count > 0)
-            {
-                return NotFound(new { message = $"Part(s) not found: {string.Join(", ", missingPartIds)}" });
-            }
-
-            var normalizedItems = dto.Items
-                .GroupBy(item => item.PartId)
-                .Select(group =>
+                var partIds = dto.Items.Select(item => item.PartId).Distinct();
+                foreach (var partId in partIds)
                 {
-                    var first = group.First();
-                    var part = partsById[group.Key];
-                    var unitPrice = first.Price > 0 ? first.Price : part.Price;
-                    return new
-                    {
-                        PartId = group.Key,
-                        Quantity = group.Sum(item => item.Quantity),
-                        Price = unitPrice
-                    };
-                })
-                .ToList();
-
-            foreach (var item in normalizedItems)
-            {
-                if (item.Quantity <= 0)
-                {
-                    return BadRequest(new { message = "Each part quantity must be greater than zero." });
+                    await _notificationService.HandlePartStockChangedAsync(partId, _emailService);
                 }
 
-                var part = partsById[item.PartId];
-                if (part.Quantity < item.Quantity)
-                {
-                    return BadRequest(new { message = $"Not enough stock for {part.PartName} (ID {part.Id}). Available: {part.Quantity}." });
-                }
+                await TrySendLoyaltyMilestoneEmailAsync(dto.CustomerId);
+
+                return Ok(invoice);
             }
-
-            await using var transaction = await _context.Database.BeginTransactionAsync();
-
-            var sale = new Sale
+            catch (KeyNotFoundException ex)
             {
-                CustomerId = dto.CustomerId,
-                Date = DateTime.UtcNow
-            };
-
-            foreach (var item in normalizedItems)
-            {
-                var part = partsById[item.PartId];
-                part.Quantity -= item.Quantity;
-
-                sale.Items.Add(new SaleItem
-                {
-                    PartId = part.Id,
-                    Quantity = item.Quantity,
-                    Price = item.Price
-                });
+                return NotFound(new { message = ex.Message });
             }
-
-            sale.TotalAmount = sale.Items.Sum(item => item.Quantity * item.Price);
-            ApplyLoyaltyPricing(sale);
-
-            _context.Sales.Add(sale);
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
-
-            foreach (var item in normalizedItems)
+            catch (InvalidOperationException ex)
             {
-                await _notificationService.HandlePartStockChangedAsync(item.PartId, _emailService);
+                return BadRequest(new { message = ex.Message });
             }
-
-            await AwardLoyaltyPointsAsync(dto.CustomerId, sale.FinalAmount);
-
-            return Ok(BuildInvoice(sale, partsById));
         }
 
         [HttpPost("send-email")]
@@ -300,23 +234,7 @@ namespace Backend.Controllers
             return Ok(new { message = "Email with invoice sent successfully." });
         }
 
-        private static void ApplyLoyaltyPricing(Sale sale)
-        {
-            if (sale.TotalAmount > 5000)
-            {
-                sale.LoyaltyDiscountApplied = true;
-                sale.DiscountAmount = sale.TotalAmount * 0.10m;
-            }
-            else
-            {
-                sale.LoyaltyDiscountApplied = false;
-                sale.DiscountAmount = 0;
-            }
-
-            sale.FinalAmount = sale.TotalAmount - sale.DiscountAmount;
-        }
-
-        private async Task AwardLoyaltyPointsAsync(int customerId, decimal finalAmount)
+        private async Task TrySendLoyaltyMilestoneEmailAsync(int customerId)
         {
             try
             {
@@ -326,40 +244,25 @@ namespace Backend.Controllers
                     return;
                 }
 
-                var perAmount = 100m;
-                if (decimal.TryParse(_configuration["Loyalty:PointsPerAmount"], out var cfgPerAmount))
-                {
-                    perAmount = cfgPerAmount;
-                }
-
-                var pointsEarned = (int)Math.Floor(finalAmount / perAmount);
-                if (pointsEarned <= 0)
-                {
-                    return;
-                }
-
-                var previous = customer.LoyaltyPoints;
-                customer.LoyaltyPoints += pointsEarned;
-                await _context.SaveChangesAsync();
-
                 var threshold = 100;
                 if (int.TryParse(_configuration["Loyalty:NotifyThreshold"], out var cfgThreshold))
                 {
                     threshold = cfgThreshold;
                 }
 
-                if (previous < threshold
-                    && customer.LoyaltyPoints >= threshold
-                    && customer.LastLoyaltyNotifiedAt == null
-                    && !string.IsNullOrWhiteSpace(customer.LegacyEmail)
-                    && _emailService.IsConfigured())
+                if (customer.LoyaltyPoints < threshold
+                    || customer.LastLoyaltyNotifiedAt != null
+                    || string.IsNullOrWhiteSpace(customer.LegacyEmail)
+                    || !_emailService.IsConfigured())
                 {
-                    var subject = "Congratulations — Loyalty Reward Unlocked";
-                    var body = $"Dear {customer.Name},<br/><br/>You've earned {customer.LoyaltyPoints} loyalty points and reached a reward milestone! Thank you for being a valued customer.<br/><br/>— GarageGo";
-                    await _emailService.SendEmailAsync(customer.LegacyEmail.Trim(), subject, body);
-                    customer.LastLoyaltyNotifiedAt = DateTime.UtcNow;
-                    await _context.SaveChangesAsync();
+                    return;
                 }
+
+                var subject = "Congratulations — Loyalty Reward Unlocked";
+                var body = $"Dear {customer.Name},<br/><br/>You've earned {customer.LoyaltyPoints} loyalty points and reached a reward milestone! Thank you for being a valued customer.<br/><br/>— GarageGo";
+                await _emailService.SendEmailAsync(customer.LegacyEmail.Trim(), subject, body);
+                customer.LastLoyaltyNotifiedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
             }
             catch
             {
@@ -403,33 +306,6 @@ namespace Backend.Controllers
                         PartName = part?.PartName ?? $"Part {item.PartId}",
                         item.Quantity,
                         item.Price,
-                        LineTotal = item.Quantity * item.Price
-                    };
-                }).ToList()
-            };
-        }
-
-        private static SaleInvoiceDto BuildInvoice(Sale sale, IReadOnlyDictionary<int, Part> partsById)
-        {
-            return new SaleInvoiceDto
-            {
-                SaleId = sale.Id,
-                CustomerId = sale.CustomerId,
-                Date = sale.Date,
-                TotalAmount = sale.TotalAmount,
-                DiscountAmount = sale.DiscountAmount,
-                FinalAmount = sale.FinalAmount,
-                LoyaltyDiscountApplied = sale.LoyaltyDiscountApplied,
-                LoyaltyPointsEarned = (int)(sale.FinalAmount / 100m),
-                Items = sale.Items.Select(item =>
-                {
-                    partsById.TryGetValue(item.PartId, out var part);
-                    return new SaleInvoiceItemDto
-                    {
-                        PartId = item.PartId,
-                        PartName = part?.PartName ?? $"Part {item.PartId}",
-                        Quantity = item.Quantity,
-                        Price = item.Price,
                         LineTotal = item.Quantity * item.Price
                     };
                 }).ToList()

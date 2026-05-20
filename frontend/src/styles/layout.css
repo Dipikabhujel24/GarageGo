@@ -880,6 +880,47 @@ body {
   border-color: transparent;
 }
 
+.customer-report-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.customer-report-export-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.status-badge {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.status-badge--paid {
+  background: #e8f7ee;
+  color: #1f7a3f;
+}
+
+.status-badge--credit,
+.status-badge--partial {
+  background: #fff4e5;
+  color: #9a5b00;
+}
+
+.status-badge--overdue {
+  background: #fde8e8;
+  color: #b42318;
+}
+
+.table tr.row-overdue td {
+  background: rgba(180, 35, 24, 0.06);
+}
+
 .management-link {
   display: inline-flex;
   width: fit-content;

@@ -33,6 +33,10 @@ namespace Backend.Controllers
         public int TotalParts { get; set; }
         public int LowStockItems { get; set; }
         public decimal PendingCredits { get; set; }
+        public decimal TotalPendingCredit { get; set; }
+        public int TotalOverdueCustomers { get; set; }
+        public int TotalCreditInvoices { get; set; }
+        public string? TopCustomerName { get; set; }
     }
 
     [ApiController]
@@ -221,10 +225,32 @@ namespace Backend.Controllers
             var startOfMonth = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
             var endOfMonth = startOfMonth.AddMonths(1);
 
+            var now = DateTime.UtcNow;
+            var overdueCutoff = now.AddDays(-30);
+
             var allSales = await _context.Sales.AsNoTracking().ToListAsync();
+            var openCreditSales = allSales.Where(sale => sale.RemainingAmount > 0).ToList();
             var monthlyRevenue = allSales
                 .Where(sale => sale.Date >= startOfMonth && sale.Date < endOfMonth)
-                .Sum(sale => sale.TotalAmount);
+                .Sum(sale => sale.FinalAmount > 0 ? sale.FinalAmount : sale.TotalAmount);
+
+            var topCustomer = allSales
+                .GroupBy(sale => sale.CustomerId)
+                .Select(group => new { CustomerId = group.Key, Total = group.Sum(sale => sale.FinalAmount) })
+                .OrderByDescending(entry => entry.Total)
+                .FirstOrDefault();
+
+            string? topCustomerName = null;
+            if (topCustomer != null)
+            {
+                topCustomerName = await _context.CustomerProfiles
+                    .AsNoTracking()
+                    .Where(customer => customer.Id == topCustomer.CustomerId)
+                    .Select(customer => customer.Name)
+                    .FirstOrDefaultAsync();
+            }
+
+            var totalPendingCredit = openCreditSales.Sum(sale => sale.RemainingAmount);
 
             return Ok(new DashboardMetricsSummary
             {
@@ -237,9 +263,15 @@ namespace Backend.Controllers
                 TotalVendors = await _context.Vendors.CountAsync(),
                 TotalParts = await _context.Parts.CountAsync(),
                 LowStockItems = await _context.Parts.CountAsync(part => part.Quantity < 10),
-                PendingCredits = await _context.ServiceHistories
-                    .Where(history => history.PaymentStatus == "Pending")
-                    .SumAsync(history => history.Amount)
+                PendingCredits = totalPendingCredit,
+                TotalPendingCredit = totalPendingCredit,
+                TotalCreditInvoices = openCreditSales.Count,
+                TotalOverdueCustomers = openCreditSales
+                    .Where(sale => sale.DueDate.HasValue && sale.DueDate < overdueCutoff)
+                    .Select(sale => sale.CustomerId)
+                    .Distinct()
+                    .Count(),
+                TopCustomerName = topCustomerName
             });
         }
     }

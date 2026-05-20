@@ -14,11 +14,16 @@ namespace Backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly NotificationService _notificationService;
+        private readonly EmailService _emailService;
 
-        public PartsController(AppDbContext context, NotificationService notificationService)
+        public PartsController(
+            AppDbContext context,
+            NotificationService notificationService,
+            EmailService emailService)
         {
             _context = context;
             _notificationService = notificationService;
+            _emailService = emailService;
         }
 
         [HttpGet]
@@ -69,6 +74,8 @@ namespace Backend.Controllers
                 .Include(existingPart => existingPart.Vendor)
                 .FirstAsync(existingPart => existingPart.Id == part.Id);
 
+            await _notificationService.HandlePartStockChangedAsync(createdPart.Id, _emailService);
+
             return CreatedAtAction(nameof(GetPart), new { id = createdPart.Id }, createdPart);
         }
 
@@ -105,7 +112,7 @@ namespace Backend.Controllers
             existingPart.VendorId = part.VendorId;
 
             await _context.SaveChangesAsync();
-            await _notificationService.HandlePartStockChangedAsync(existingPart.Id);
+            await _notificationService.HandlePartStockChangedAsync(existingPart.Id, _emailService);
 
             return NoContent();
         }

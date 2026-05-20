@@ -52,6 +52,9 @@ function StaffSalesPage() {
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+  const [paymentStatus, setPaymentStatus] = useState('Paid');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [dueDate, setDueDate] = useState('');
 
   useEffect(() => {
     if (!canAccessSales) {
@@ -198,11 +201,36 @@ function StaffSalesPage() {
       return;
     }
 
+    const normalizedPaymentStatus = paymentStatus || 'Paid';
+    const requiresCreditFields = normalizedPaymentStatus === 'Credit' || normalizedPaymentStatus === 'Partial';
+
+    if (requiresCreditFields && !dueDate) {
+      setFeedback({ type: 'error', message: 'Due date is required for credit or partial invoices.' });
+      return;
+    }
+
+    const parsedPaidAmount = Number(paidAmount || 0);
+
+    if (normalizedPaymentStatus === 'Partial') {
+      if (parsedPaidAmount < 0) {
+        setFeedback({ type: 'error', message: 'Paid amount cannot be negative.' });
+        return;
+      }
+
+      if (parsedPaidAmount > totals.finalAmount) {
+        setFeedback({ type: 'error', message: 'Paid amount cannot exceed invoice total.' });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
       const response = await createSale({
         customerId: parsedCustomerId,
+        paymentStatus: normalizedPaymentStatus,
+        paidAmount: normalizedPaymentStatus === 'Partial' ? parsedPaidAmount : undefined,
+        dueDate: requiresCreditFields ? dueDate : undefined,
         items: cartItems.map((item) => ({
           partId: item.partId,
           quantity: item.quantity,
@@ -220,6 +248,9 @@ function StaffSalesPage() {
       setPartId('');
       setQuantity(1);
       setPrice(0);
+      setPaymentStatus('Paid');
+      setPaidAmount('');
+      setDueDate('');
       setFeedback({ type: 'success', message: 'Invoice created successfully.' });
       navigate(`/staff/invoices/${invoice.saleId}`, { state: { invoice } });
     } catch (error) {
@@ -361,6 +392,62 @@ function StaffSalesPage() {
                       ))}
                     </ul>
                   )}
+
+                  <section className="sales-section sales-section--payment">
+                    <h3 className="sales-section__title">Payment</h3>
+                    <div className="sales-page__row">
+                      <label className="field">
+                        <span className="field__label">Payment Status</span>
+                        <select
+                          value={paymentStatus}
+                          onChange={(event) => setPaymentStatus(event.target.value)}
+                          disabled={isSubmitting}
+                        >
+                          <option value="Paid">Paid</option>
+                          <option value="Credit">Credit</option>
+                          <option value="Partial">Partial</option>
+                        </select>
+                      </label>
+
+                      {(paymentStatus === 'Credit' || paymentStatus === 'Partial') && (
+                        <label className="field">
+                          <span className="field__label">Due Date</span>
+                          <input
+                            type="date"
+                            value={dueDate}
+                            onChange={(event) => setDueDate(event.target.value)}
+                            disabled={isSubmitting}
+                          />
+                        </label>
+                      )}
+
+                      {paymentStatus === 'Partial' && (
+                        <label className="field">
+                          <span className="field__label">Paid Amount</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={paidAmount}
+                            onChange={(event) => setPaidAmount(event.target.value)}
+                            disabled={isSubmitting}
+                            {...numberInputAutofillProps}
+                          />
+                        </label>
+                      )}
+                    </div>
+                    {paymentStatus === 'Credit' && (
+                      <p className="sales-field-hint">
+                        Remaining balance: {formatCurrency(totals.finalAmount)}
+                      </p>
+                    )}
+                    {paymentStatus === 'Partial' && (
+                      <p className="sales-field-hint">
+                        Remaining balance:{' '}
+                        {formatCurrency(Math.max(0, totals.finalAmount - Number(paidAmount || 0)))}
+                      </p>
+                    )}
+                  </section>
 
                   <div className="sales-summary">
                     <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} highlight />

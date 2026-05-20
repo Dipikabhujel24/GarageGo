@@ -94,6 +94,25 @@ namespace Backend.Services
             }
         }
 
+        public async Task SendPaymentReminderAsync(
+            string customerEmail,
+            string invoiceNumber,
+            decimal remainingAmount,
+            DateTime? dueDate)
+        {
+            var subject = "Payment Reminder — GarageGo";
+            var dueText = dueDate.HasValue ? dueDate.Value.ToString("yyyy-MM-dd") : "N/A";
+            var body = $@"
+<h2 style='color:#5B2D82;'>Payment Reminder</h2>
+<p>Dear Customer,</p>
+<p>Invoice <strong>{invoiceNumber}</strong> has an overdue balance of <strong>Rs {remainingAmount:0.00}</strong>.</p>
+<p>Due date: {dueText}</p>
+<p>Please settle this amount at your earliest convenience.</p>
+<p>Thank you,<br/><strong>GarageGo Team</strong></p>";
+
+            await SendEmailAsync(customerEmail, subject, body);
+        }
+
         public async Task SendEmailWithAttachmentAsync(
             string to,
             string subject,

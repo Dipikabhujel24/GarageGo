@@ -107,6 +107,16 @@ namespace Backend.Data
                 entity.Property(history => history.PaymentStatus).HasMaxLength(20);
                 entity.Property(history => history.InvoiceNumber).HasMaxLength(50);
                 entity.Property(history => history.Amount).HasColumnType("numeric(18,2)");
+                entity.Property(history => history.ServiceDate).HasColumnType("timestamp with time zone");
+                entity.Property(history => history.ReminderSentAt).HasColumnType("timestamp with time zone");
+
+                entity.HasIndex(history => history.RelatedSaleId)
+                    .IsUnique();
+
+                entity.HasOne(history => history.RelatedSale)
+                    .WithMany()
+                    .HasForeignKey(history => history.RelatedSaleId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<Vendor>()
@@ -151,9 +161,19 @@ namespace Backend.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-            modelBuilder.Entity<Sale>()
-                .Property(sale => sale.TotalAmount)
-                .HasColumnType("numeric(18,2)");
+            modelBuilder.Entity<Sale>(entity =>
+            {
+                entity.Property(sale => sale.TotalAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.DiscountAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.FinalAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.PaidAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.RemainingAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.InvoiceNumber).HasMaxLength(50);
+                entity.Property(sale => sale.PaymentStatus).HasMaxLength(20);
+                entity.Property(sale => sale.Date).HasColumnType("timestamp with time zone");
+                entity.Property(sale => sale.DueDate).HasColumnType("timestamp with time zone");
+                entity.Property(sale => sale.LastReminderSentAt).HasColumnType("timestamp with time zone");
+            });
 
             modelBuilder.Entity<SaleItem>()
                 .Property(item => item.Price)

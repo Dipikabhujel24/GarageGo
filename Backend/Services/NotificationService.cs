@@ -27,15 +27,18 @@ public class NotificationService
 
     private readonly AppDbContext _db;
     private readonly IConfiguration _configuration;
+    private readonly EmailService _emailService;
     private readonly ILogger<NotificationService> _logger;
 
     public NotificationService(
         AppDbContext db,
         IConfiguration configuration,
+        EmailService emailService,
         ILogger<NotificationService> logger)
     {
         _db = db;
         _configuration = configuration;
+        _emailService = emailService;
         _logger = logger;
     }
 
@@ -71,7 +74,7 @@ public class NotificationService
             return;
         }
 
-        await NotifyLowStockAsync(part, email, ct);
+        await NotifyLowStockAsync(part, email ?? _emailService, ct);
     }
 
     public async Task NotifyLowStockAsync(Part part, EmailService? email, CancellationToken ct = default)
@@ -98,17 +101,28 @@ public class NotificationService
             return;
         }
 
-        if (part.LastLowStockNotifiedAt != null || email == null)
+        var mailer = email ?? _emailService;
+        var adminEmail = _configuration["Notifications:AdminEmail"]
+            ?? _configuration["InitialAdmin:Email"];
+
+        if (part.LastLowStockNotifiedAt != null)
         {
             await _db.SaveChangesAsync(ct);
             return;
         }
 
-        var adminEmail = _configuration["Notifications:AdminEmail"]
-            ?? _configuration["InitialAdmin:Email"];
-
         if (string.IsNullOrWhiteSpace(adminEmail))
         {
+            _logger.LogWarning("Low-stock in-app alert created for part {PartId}, but Notifications:AdminEmail is not set.", part.Id);
+            await _db.SaveChangesAsync(ct);
+            return;
+        }
+
+        if (!mailer.IsConfigured())
+        {
+            _logger.LogWarning(
+                "Low-stock in-app alert created for part {PartId}, but SMTP is not configured (EmailSettings:SmtpUser/SmtpPass/FromEmail).",
+                part.Id);
             await _db.SaveChangesAsync(ct);
             return;
         }
@@ -116,9 +130,10 @@ public class NotificationService
         try
         {
             var subject = $"Low stock alert: {part.PartName}";
-            var body = $"Part <strong>{part.PartName}</strong> (ID {part.Id}) is low on stock ({part.Quantity} remaining).";
-            await email.SendEmailAsync(adminEmail, subject, body);
+            var body = $"Part <strong>{part.PartName}</strong> (ID {part.Id}) is low on stock ({part.Quantity} remaining, threshold {threshold}).";
+            await mailer.SendEmailAsync(adminEmail.Trim(), subject, body);
             part.LastLowStockNotifiedAt = DateTime.UtcNow;
+            _logger.LogInformation("Low-stock email sent to {AdminEmail} for part {PartId}.", adminEmail, part.Id);
         }
         catch (Exception ex)
         {
@@ -279,6 +294,40 @@ public class NotificationService
             $"overdue-credit-admin:{history.Id}",
             referenceType: "ServiceHistory",
             referenceId: history.Id,
+            ct);
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task NotifySalePaymentReminderAsync(
+        Sale sale,
+        int customerUserId,
+        string customerName,
+        CancellationToken ct = default)
+    {
+        var invoiceNumber = string.IsNullOrWhiteSpace(sale.InvoiceNumber)
+            ? $"INV-{sale.Id:D4}"
+            : sale.InvoiceNumber;
+
+        await TryCreateCustomerNotificationAsync(
+            customerUserId,
+            type: "credit_reminder",
+            title: "Payment Reminder",
+            message: $"Invoice {invoiceNumber} has an overdue balance of Rs {sale.RemainingAmount:0.00}.",
+            linkUrl: "/history",
+            $"credit-reminder-sale:{sale.Id}",
+            referenceType: "Sale",
+            referenceId: sale.Id,
+            ct);
+
+        await TryCreateAdminNotificationAsync(
+            type: "overdue_credit",
+            title: "Overdue customer credit",
+            message: $"{customerName} — invoice {invoiceNumber} overdue (Rs {sale.RemainingAmount:0.00}).",
+            linkUrl: "/staff/customer-reports",
+            $"overdue-credit-sale:{sale.Id}",
+            referenceType: "Sale",
+            referenceId: sale.Id,
             ct);
 
         await _db.SaveChangesAsync(ct);

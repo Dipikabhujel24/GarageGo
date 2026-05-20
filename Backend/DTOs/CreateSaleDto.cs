@@ -5,6 +5,18 @@ namespace Backend.DTOs
     public class CreateSaleDto
     {
         public int CustomerId { get; set; }
+
+        /// <summary>Optional vehicle to associate with the mirrored purchase history row.</summary>
+        public int? VehicleId { get; set; }
+
+        /// <summary>Paid, Credit, or Partial (default Paid).</summary>
+        public string? PaymentStatus { get; set; }
+
+        /// <summary>Required for Credit/Partial. Amount already collected for Partial.</summary>
+        public decimal? PaidAmount { get; set; }
+
+        public DateTime? DueDate { get; set; }
+
         public List<SaleItemDto> Items { get; set; } = new();
     }
 
@@ -49,6 +61,11 @@ namespace Backend.DTOs
         public decimal FinalAmount { get; set; }
         public bool LoyaltyDiscountApplied { get; set; }
         public int LoyaltyPointsEarned { get; set; }
+        public string InvoiceNumber { get; set; } = string.Empty;
+        public string PaymentStatus { get; set; } = "Paid";
+        public decimal PaidAmount { get; set; }
+        public decimal RemainingAmount { get; set; }
+        public DateTime? DueDate { get; set; }
         public List<SaleInvoiceItemDto> Items { get; set; } = new();
     }
 

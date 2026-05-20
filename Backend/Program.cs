@@ -48,6 +48,9 @@ builder.Services.AddHttpClient("OpenRouter", client =>
 builder.Services.AddScoped<PredictiveMaintenanceService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<NotificationCheckRunner>();
+builder.Services.AddScoped<SalesService>();
+builder.Services.AddScoped<OverdueCreditService>();
+builder.Services.AddScoped<CustomerReportsService>();
 
 var resolvedConnectionString =
     builder.Configuration.GetConnectionString("DefaultConnection") ??
@@ -485,6 +488,65 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
 
     await EnsureSqlAsync(db, "UPDATE \"Sales\" SET \"FinalAmount\" = \"TotalAmount\" WHERE \"FinalAmount\" = 0 AND \"TotalAmount\" <> 0;");
 
+    var creditColumns = new (string Name, string PostgresSql, string SqliteSql)[]
+    {
+        ("InvoiceNumber",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"InvoiceNumber\" character varying(50) NOT NULL DEFAULT '';",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"InvoiceNumber\" TEXT NOT NULL DEFAULT '';"),
+        ("PaymentStatus",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"PaymentStatus\" character varying(20) NOT NULL DEFAULT 'Paid';",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"PaymentStatus\" TEXT NOT NULL DEFAULT 'Paid';"),
+        ("PaidAmount",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"PaidAmount\" numeric(18,2) NOT NULL DEFAULT 0;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"PaidAmount\" numeric(18,2) NOT NULL DEFAULT 0;"),
+        ("RemainingAmount",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"RemainingAmount\" numeric(18,2) NOT NULL DEFAULT 0;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"RemainingAmount\" numeric(18,2) NOT NULL DEFAULT 0;"),
+        ("DueDate",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"DueDate\" timestamp with time zone NULL;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"DueDate\" TEXT NULL;"),
+        ("LastReminderSentAt",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"LastReminderSentAt\" timestamp with time zone NULL;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"LastReminderSentAt\" TEXT NULL;"),
+        ("ReminderCount",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"ReminderCount\" integer NOT NULL DEFAULT 0;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"ReminderCount\" INTEGER NOT NULL DEFAULT 0;")
+    };
+
+    foreach (var column in creditColumns)
+    {
+        if (!salesColumns.Contains(column.Name))
+        {
+            await EnsureSqlAsync(db, IsPostgresProvider(providerName) ? column.PostgresSql : column.SqliteSql);
+            salesColumns.Add(column.Name);
+        }
+    }
+
+    await EnsureSqlAsync(db, """
+        UPDATE "Sales"
+        SET "PaymentStatus" = 'Paid',
+            "PaidAmount" = COALESCE(NULLIF("FinalAmount", 0), "TotalAmount"),
+            "RemainingAmount" = 0
+        WHERE COALESCE("PaymentStatus", '') = '' OR "PaymentStatus" = 'Paid' AND "RemainingAmount" = 0 AND "PaidAmount" = 0;
+        """);
+
+    if (IsPostgresProvider(providerName))
+    {
+        await EnsureSqlAsync(db, """
+            UPDATE "Sales"
+            SET "InvoiceNumber" = 'INV-' || LPAD("Id"::text, 4, '0')
+            WHERE COALESCE("InvoiceNumber", '') = '';
+            """);
+    }
+    else
+    {
+        await EnsureSqlAsync(db, """
+            UPDATE "Sales"
+            SET "InvoiceNumber" = 'INV-' || printf('%04d', "Id")
+            WHERE COALESCE("InvoiceNumber", '') = '';
+            """);
+    }
+
     await EnsureTableAsync(
         db,
         existingTables,
@@ -766,6 +828,28 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
         existingColumns.Add("ReminderSentAt");
     }
 
+    if (!existingColumns.Contains("RelatedSaleId"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"ServiceHistories\" ADD COLUMN \"RelatedSaleId\" integer NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"ServiceHistories\" ADD COLUMN \"RelatedSaleId\" INTEGER NULL;");
+        }
+
+        existingColumns.Add("RelatedSaleId");
+    }
+
+    await EnsureSqlAsync(
+        db,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_ServiceHistories_RelatedSaleId"
+        ON "ServiceHistories" ("RelatedSaleId")
+        WHERE "RelatedSaleId" IS NOT NULL;
+        """);
+
     if (existingColumns.Contains("HistoryType") && existingColumns.Contains("Title"))
     {
         await EnsureSqlAsync(
@@ -883,6 +967,44 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
         }
 
         vehicleColumns.Add("CreatedAt");
+    }
+
+    if (IsPostgresProvider(providerName))
+    {
+        await RepairAllPostgresTimestampColumnsAsync(db);
+    }
+}
+
+static async Task RepairAllPostgresTimestampColumnsAsync(AppDbContext db)
+{
+    (string Table, string Column)[] columns =
+    [
+        ("Sales", "Date"),
+        ("Sales", "DueDate"),
+        ("Sales", "LastReminderSentAt"),
+        ("ServiceHistories", "ServiceDate"),
+        ("ServiceHistories", "ReminderSentAt"),
+        ("Customers", "CreatedAt"),
+        ("Customers", "LastLoyaltyNotifiedAt"),
+        ("CustomerVehicles", "CreatedAt"),
+        ("Appointments", "AppointmentDate"),
+        ("Appointments", "CreatedAt"),
+        ("Parts", "CreatedAt"),
+        ("Parts", "LastLowStockNotifiedAt"),
+        ("Users", "CreatedAt"),
+        ("Users", "VerificationExpiresAt"),
+        ("Users", "PasswordResetExpiresAt"),
+        ("AppNotifications", "CreatedAt"),
+        ("PurchaseInvoices", "PurchaseDate"),
+        ("PurchaseInvoices", "CreatedAt"),
+        ("UnavailablePartRequests", "CreatedAt"),
+        ("ServiceReviews", "CreatedAt"),
+        ("Vendors", "CreatedAt"),
+    ];
+
+    foreach (var (table, column) in columns)
+    {
+        await EnsurePostgresTimestampColumnAsync(db, table, column);
     }
 }
 
@@ -1281,6 +1403,52 @@ static async Task EnsureTableAsync(
 static async Task EnsureSqlAsync(AppDbContext db, string sql)
 {
     await db.Database.ExecuteSqlRawAsync(sql);
+}
+
+/// <summary>
+/// Repairs legacy schema drift where date columns were created as TEXT on PostgreSQL.
+/// Uses pg_catalog so quoted identifiers (e.g. "Sales"."Date") are detected reliably.
+/// </summary>
+static async Task EnsurePostgresTimestampColumnAsync(AppDbContext db, string tableName, string columnName)
+{
+    var sql = $@"
+DO $ensure_ts$
+DECLARE
+    current_type text;
+BEGIN
+    SELECT t.typname
+    INTO current_type
+    FROM pg_class c
+    INNER JOIN pg_namespace n ON n.oid = c.relnamespace
+    INNER JOIN pg_attribute a ON a.attrelid = c.oid
+    INNER JOIN pg_type t ON a.atttypid = t.oid
+    WHERE n.nspname = 'public'
+      AND c.relname = '{tableName}'
+      AND a.attname = '{columnName}'
+      AND a.attnum > 0
+      AND NOT a.attisdropped;
+
+    IF current_type IS NULL THEN
+        RETURN;
+    END IF;
+
+    IF current_type IN ('text', 'varchar', 'bpchar') THEN
+        EXECUTE format(
+            'ALTER TABLE %I ALTER COLUMN %I TYPE timestamp with time zone USING (
+                CASE
+                    WHEN %I IS NULL THEN NULL
+                    WHEN btrim(%I::text) = '''' THEN NULL
+                    ELSE %I::timestamptz
+                END)',
+            '{tableName}',
+            '{columnName}',
+            '{columnName}',
+            '{columnName}',
+            '{columnName}');
+    END IF;
+END $ensure_ts$;";
+
+    await EnsureSqlAsync(db, sql);
 }
 
 static bool LooksLikePostgresConnectionString(string connectionString)

@@ -19,17 +19,23 @@ namespace Backend.Controllers
         private readonly AppDbContext _db;
         private readonly IConfiguration _config;
         private readonly NotificationCheckRunner _checkRunner;
+        private readonly OverdueCreditService _overdueCredits;
+        private readonly SalesService _salesService;
         private readonly IWebHostEnvironment _environment;
 
         public NotificationsController(
             AppDbContext db,
             IConfiguration config,
             NotificationCheckRunner checkRunner,
+            OverdueCreditService overdueCredits,
+            SalesService salesService,
             IWebHostEnvironment environment)
         {
             _db = db;
             _config = config;
             _checkRunner = checkRunner;
+            _overdueCredits = overdueCredits;
+            _salesService = salesService;
             _environment = environment;
         }
 
@@ -39,17 +45,17 @@ namespace Backend.Controllers
         {
             var threshold = GetThreshold();
             var now = DateTime.UtcNow;
-            var creditCutoff = now.AddMonths(-1);
 
             var lowStockCount = await _db.Parts.CountAsync(p => p.Quantity < threshold);
-            var overdueCandidates = await _db.ServiceHistories
-                .Where(h => h.PaymentStatus != null && h.ServiceDate <= creditCutoff && h.ReminderSentAt == null)
-                .Select(h => h.PaymentStatus)
-                .ToListAsync();
-
-            var overdueCredits = overdueCandidates.Count(status =>
-                NotificationService.IsOverdueCreditStatus(status)
-                && !NotificationService.IsPaidCreditStatus(status));
+            var overdueCutoff = now.AddDays(-30);
+            var overdueCredits = await _db.Sales
+                .Where(sale =>
+                    sale.RemainingAmount > 0
+                    && sale.DueDate != null
+                    && sale.DueDate < overdueCutoff)
+                .Select(sale => sale.CustomerId)
+                .Distinct()
+                .CountAsync();
 
             var unreadCount = await _db.AppNotifications.CountAsync(n =>
                 n.Audience == "Admin" && !n.IsDismissed && !n.IsRead);
@@ -125,7 +131,7 @@ namespace Backend.Controllers
             return Ok(new { message = "Notification dismissed." });
         }
 
-        /// <summary>Creates one overdue credit row for manual notification testing (Development only).</summary>
+        /// <summary>Creates an overdue credit sale for manual notification testing (Development only).</summary>
         [HttpPost("seed-overdue-test")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SeedOverdueTest([FromQuery] int? customerId, [FromQuery] string? email)
@@ -140,11 +146,14 @@ namespace Backend.Controllers
             {
                 var normalized = email.Trim().ToLowerInvariant();
                 customer = await _db.CustomerProfiles
+                    .Include(c => c.User)
                     .FirstOrDefaultAsync(c => c.LegacyEmail.ToLower() == normalized);
             }
             else if (customerId.HasValue)
             {
-                customer = await _db.CustomerProfiles.FindAsync(customerId.Value);
+                customer = await _db.CustomerProfiles
+                    .Include(c => c.User)
+                    .FirstOrDefaultAsync(c => c.Id == customerId.Value);
             }
 
             if (customer == null)
@@ -152,29 +161,84 @@ namespace Backend.Controllers
                 return NotFound(new { message = "Customer not found. Pass customerId or email." });
             }
 
-            var history = new Models.ServiceHistory
+            var part = await _db.Parts.OrderBy(p => p.Id).FirstOrDefaultAsync();
+            if (part == null)
+            {
+                return BadRequest(new { message = "No parts in inventory. Add a part before seeding." });
+            }
+
+            if (part.Quantity < 1)
+            {
+                part.Quantity = 10;
+                await _db.SaveChangesAsync();
+            }
+
+            var dueDate = DateTime.UtcNow.AddDays(-45);
+            var saleDto = new CreateSaleDto
             {
                 CustomerId = customer.Id,
-                HistoryType = "Service",
-                Title = "Neon notification test — overdue credit",
-                Description = "Created for coursework notification/email verification.",
-                Amount = 499.99m,
-                PaymentStatus = "Credit",
-                ServiceDate = DateTime.UtcNow.AddDays(-45),
-                ReminderSentAt = null
+                PaymentStatus = PaymentStatuses.Credit,
+                DueDate = dueDate,
+                Items = new List<SaleItemDto>
+                {
+                    new()
+                    {
+                        PartId = part.Id,
+                        Quantity = 1,
+                        Price = part.Price > 0 ? part.Price : 49999m
+                    }
+                }
             };
 
-            _db.ServiceHistories.Add(history);
-            await _db.SaveChangesAsync();
+            SaleInvoiceDto invoice;
+            try
+            {
+                invoice = await _salesService.CreateSaleAsync(saleDto);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
+            var sale = await _db.Sales.FindAsync(invoice.SaleId);
+            if (sale != null)
+            {
+                sale.DueDate = dueDate;
+                sale.RemainingAmount = sale.FinalAmount;
+                sale.PaymentStatus = PaymentStatuses.Credit;
+                sale.PaidAmount = 0;
+                sale.LastReminderSentAt = null;
+                sale.ReminderCount = 0;
+                await _db.SaveChangesAsync();
+            }
 
             return Ok(new
             {
-                message = "Overdue test service history created. Call POST /api/notifications/run-checks next.",
-                history.Id,
+                message = "Overdue credit sale created. Call POST /api/notifications/check-overdue-credits next.",
+                saleId = invoice.SaleId,
+                invoiceNumber = invoice.InvoiceNumber,
                 customerId = customer.Id,
                 customerUserId = customer.UserId,
-                customerEmail = customer.LegacyEmail,
-                note = "Reminder email is sent to customerEmail above when run-checks runs."
+                customerEmail = customer.User?.Email ?? customer.LegacyEmail,
+                remainingAmount = invoice.RemainingAmount,
+                dueDate
+            });
+        }
+
+        /// <summary>Runs overdue credit checks on open sales (30+ days past due).</summary>
+        [HttpPost("check-overdue-credits")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> CheckOverdueCredits()
+        {
+            var result = await _overdueCredits.ProcessOverdueSalesAsync();
+            return Ok(new
+            {
+                message = "Overdue credit check completed.",
+                result.Processed,
+                result.EmailsSent,
+                emailsSentTo = result.EmailsSentTo,
+                result.Errors,
+                smtpConfigured = HttpContext.RequestServices.GetRequiredService<EmailService>().IsConfigured()
             });
         }
 
