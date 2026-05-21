@@ -2,9 +2,9 @@
   min-height: 100vh;
   padding: 8px 0 40px;
   background:
-    radial-gradient(circle at top left, rgba(18, 99, 168, 0.16), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.12), transparent 24%),
-    linear-gradient(160deg, #f4f9ff 0%, #eaf4ff 100%);
+    radial-gradient(circle at top left, rgba(var(--accent-pink-rgb), 0.16), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(63, 47, 102, 0.12), transparent 24%),
+    linear-gradient(160deg, var(--bg-light) 0%, var(--pink-tint-25) 100%);
 }
 
 .notifications-shell {
@@ -22,8 +22,8 @@
   padding: 28px;
   border-radius: 28px;
   border: 1px solid rgba(255, 255, 255, 0.72);
-  background: linear-gradient(135deg, #082f49 0%, #0f4f7f 48%, #1f78ea 100%);
-  box-shadow: 0 18px 40px rgba(17, 75, 159, 0.12);
+  background: var(--gradient-hero);
+  box-shadow: 0 18px 40px var(--shadow-soft);
 }
 
 .notifications-hero-copy {
@@ -95,7 +95,7 @@
   border: 1px solid var(--line);
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 16px 32px rgba(17, 75, 159, 0.08);
+  box-shadow: 0 16px 32px var(--shadow-soft);
 }
 
 .notifications-loading {
@@ -169,8 +169,8 @@
   gap: 16px;
   padding: 18px;
   border-radius: 18px;
-  border: 1px solid rgba(216, 230, 247, 0.95);
-  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  border: 1px solid var(--border-soft);
+  background: linear-gradient(180deg, #ffffff, var(--bg-light));
 }
 
 .notification-item--warning {
@@ -216,6 +216,51 @@
   margin: 0;
   color: var(--ink-600);
   font-size: 0.92rem;
+}
+
+.notification-inbox-list {
+  display: grid;
+  gap: 12px;
+}
+
+.notification-inbox-item {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(91, 45, 130, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.notification-inbox-item--unread {
+  border-color: rgba(240, 98, 146, 0.35);
+  box-shadow: 0 8px 20px rgba(240, 98, 146, 0.08);
+}
+
+.notification-inbox-item__head {
+  display: grid;
+  gap: 10px;
+}
+
+.notification-inbox-item__head h4 {
+  margin: 0 0 6px;
+}
+
+.notification-inbox-item__head p {
+  margin: 0;
+  color: var(--ink-500);
+}
+
+.notification-inbox-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.notification-inbox-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 @media (max-width: 1080px) {

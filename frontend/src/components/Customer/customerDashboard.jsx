@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { clearAuthSession, getStoredAuthUser } from '../../utils/authSession';
+import AiMaintenanceAlerts from './AiMaintenanceAlerts';
 import './CustomerModule.css';
 
 function CustomerDashboard() {
@@ -29,10 +30,22 @@ function CustomerDashboard() {
       onClick: () => navigate('/history'),
     },
     {
-      title: 'Requests',
-      description: 'Book appointments, request unavailable parts, and leave service reviews.',
-      buttonLabel: 'Open Requests',
-      onClick: () => navigate('/requests'),
+      title: 'Appointments',
+      description: 'Book a service appointment and track your booking status.',
+      buttonLabel: 'Book Appointment',
+      onClick: () => navigate('/appointments'),
+    },
+    {
+      title: 'Part Requests',
+      description: 'Request unavailable parts for your vehicle.',
+      buttonLabel: 'Request a Part',
+      onClick: () => navigate('/part-requests'),
+    },
+    {
+      title: 'Reviews',
+      description: 'Rate your GarageGo service experience.',
+      buttonLabel: 'Leave a Review',
+      onClick: () => navigate('/reviews'),
     },
   ];
 
@@ -52,7 +65,7 @@ function CustomerDashboard() {
           </p>
 
           <div className="dashboard-hero-actions">
-            <button type="button" className="primary-btn" onClick={() => navigate('/requests')}>
+            <button type="button" className="primary-btn" onClick={() => navigate('/appointments')}>
               Book a Service
             </button>
             <button type="button" className="secondary-btn" onClick={() => navigate('/history')}>
@@ -76,20 +89,26 @@ function CustomerDashboard() {
           <article className="dashboard-shortcut-card">
             <span className="dashboard-shortcut-label">GarageGo self-service</span>
             <span className="dashboard-metric-value" style={{ fontSize: '1.2rem' }}>
-              Requests and appointments
+              Appointments, parts, and reviews
             </span>
             <p className="dashboard-copy" style={{ marginTop: '10px', fontSize: '15px' }}>
-              Use the requests page to book an appointment, request a part, or leave feedback.
+              Book an appointment, request a part, or leave feedback from dedicated pages.
             </p>
             <div className="dashboard-card-links" style={{ marginTop: '14px' }}>
-              <button type="button" className="secondary-btn" onClick={() => navigate('/requests')}>
-                Open Requests
+              <button type="button" className="secondary-btn" onClick={() => navigate('/appointments')}>
+                Appointments
               </button>
               <button type="button" className="secondary-btn" onClick={() => navigate('/vehicles')}>
                 Manage Vehicles
               </button>
             </div>
           </article>
+        </div>
+      </section>
+
+      <section className="dashboard-section-grid dashboard-section-grid--ai" aria-label="AI maintenance insights">
+        <div className="dashboard-panel dashboard-panel--full">
+          <AiMaintenanceAlerts />
         </div>
       </section>
 
@@ -143,8 +162,14 @@ function CustomerDashboard() {
               <button type="button" className="support-link-button" onClick={() => navigate('/history')}>
                 Open History
               </button>
-              <button type="button" className="support-link-button" onClick={() => navigate('/requests')}>
-                Open Requests
+              <button type="button" className="support-link-button" onClick={() => navigate('/appointments')}>
+                Appointments
+              </button>
+              <button type="button" className="support-link-button" onClick={() => navigate('/part-requests')}>
+                Part Requests
+              </button>
+              <button type="button" className="support-link-button" onClick={() => navigate('/reviews')}>
+                Reviews
               </button>
             </div>
           </section>

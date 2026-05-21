@@ -1,7 +1,8 @@
 import axios from 'axios';
+import { API_BASE } from '../config/api';
+import { getStoredToken } from '../utils/authSession';
 
-const REPORTS_API_BASE_URL =
-  process.env.REACT_APP_API_URL?.trim() || 'http://localhost:5000';
+const REPORTS_API_BASE_URL = API_BASE;
 
 const reportsApi = axios.create({
   baseURL: `${REPORTS_API_BASE_URL}/api/reports`,
@@ -12,7 +13,7 @@ const reportsApi = axios.create({
 });
 
 reportsApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = getStoredToken() || localStorage.getItem('token') || '';
 
   if (token) {
     config.headers = config.headers ?? {};
@@ -52,4 +53,64 @@ export async function getMonthlyReports() {
 export async function getYearlyReports() {
   const response = await reportsApi.get('/yearly');
   return response.data;
+}
+
+export async function getSalesTrends() {
+  const response = await reportsApi.get('/sales-trends');
+  return response.data;
+}
+
+export async function getTopSellingParts() {
+  const response = await reportsApi.get('/top-selling-parts');
+  return response.data;
+}
+
+export async function getDashboardMetrics() {
+  const response = await reportsApi.get('/dashboard-metrics');
+  return response.data;
+}
+
+export async function getRegularCustomerReports() {
+  const response = await reportsApi.get('/customers/regulars');
+  return response.data;
+}
+
+export async function getHighSpenderCustomerReports() {
+  const response = await reportsApi.get('/customers/high-spenders');
+  return response.data;
+}
+
+export async function getPendingCreditCustomerReports() {
+  const response = await reportsApi.get('/customers/pending-credits');
+  return response.data;
+}
+
+export async function getCustomerReportsSummary() {
+  const response = await reportsApi.get('/customers/summary');
+  return response.data;
+}
+
+function downloadBlob(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function exportPendingCreditsCsv() {
+  const response = await reportsApi.get('/customers/pending-credits/export/csv', {
+    responseType: 'blob',
+  });
+  downloadBlob(response.data, 'pending-credits.csv');
+}
+
+export async function exportPendingCreditsPdf() {
+  const response = await reportsApi.get('/customers/pending-credits/export/pdf', {
+    responseType: 'blob',
+  });
+  downloadBlob(response.data, 'pending-credits.pdf');
 }

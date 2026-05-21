@@ -1,12 +1,15 @@
 using Backend.Data;
 using Backend.Models;
 using Backend.Services;
+using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using System.Data.Common;
 using System.Text;
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,23 +24,33 @@ builder.Services.AddCors(options =>
     options.AddPolicy(FrontendCorsPolicy, policy =>
     {
         policy
-            .SetIsOriginAllowed(origin =>
-            {
-                if (!Uri.TryCreate(origin, UriKind.Absolute, out var parsedOrigin))
-                {
-                    return false;
-                }
-
-                return string.Equals(parsedOrigin.Host, "localhost", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(parsedOrigin.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
-            })
+            .WithOrigins(
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "http://localhost:3001",
+                "http://127.0.0.1:3001"
+            )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<InvoiceService>();
+builder.Services.AddScoped<GoogleAuthService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.Configure<OpenRouterSettings>(builder.Configuration.GetSection("OpenRouter"));
+builder.Services.AddHttpClient("OpenRouter", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
+builder.Services.AddScoped<PredictiveMaintenanceService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<NotificationCheckRunner>();
+builder.Services.AddScoped<SalesService>();
+builder.Services.AddScoped<OverdueCreditService>();
+builder.Services.AddScoped<CustomerReportsService>();
 
 var resolvedConnectionString =
     builder.Configuration.GetConnectionString("DefaultConnection") ??
@@ -205,6 +218,97 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
 
     await EnsureSqlAsync(db, "UPDATE \"Users\" SET \"Status\" = 'Active' WHERE \"Status\" IS NULL OR TRIM(\"Status\") = '';");
 
+    if (!userColumns.Contains("EmailVerified"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"EmailVerified\" boolean NOT NULL DEFAULT false;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"EmailVerified\" INTEGER NOT NULL DEFAULT 0;");
+        }
+
+        userColumns.Add("EmailVerified");
+    }
+
+    if (!userColumns.Contains("VerificationCode"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"VerificationCode\" text NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"VerificationCode\" TEXT NULL;");
+        }
+
+        userColumns.Add("VerificationCode");
+    }
+
+    if (!userColumns.Contains("VerificationExpiresAt"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"VerificationExpiresAt\" timestamp with time zone NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"VerificationExpiresAt\" TEXT NULL;");
+        }
+
+        userColumns.Add("VerificationExpiresAt");
+    }
+
+    if (!userColumns.Contains("PasswordResetCode"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"PasswordResetCode\" text NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"PasswordResetCode\" TEXT NULL;");
+        }
+
+        userColumns.Add("PasswordResetCode");
+    }
+
+    if (!userColumns.Contains("PasswordResetExpiresAt"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"PasswordResetExpiresAt\" timestamp with time zone NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"PasswordResetExpiresAt\" TEXT NULL;");
+        }
+
+        userColumns.Add("PasswordResetExpiresAt");
+    }
+
+    if (!userColumns.Contains("GoogleId"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"GoogleId\" character varying(128) NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"Users\" ADD COLUMN \"GoogleId\" TEXT NULL;");
+        }
+
+        userColumns.Add("GoogleId");
+    }
+
+    await EnsureSqlAsync(
+        db,
+        "UPDATE \"Users\" SET \"EmailVerified\" = true WHERE \"EmailVerified\" = false AND (\"VerificationCode\" IS NULL OR TRIM(\"VerificationCode\") = '');");
+    await EnsureSqlAsync(
+        db,
+        "UPDATE \"Users\" SET \"EmailVerified\" = true WHERE \"EmailVerified\" = false AND \"Role\" <> 'Customer';");
+
     await EnsureTableAsync(
         db,
         existingTables,
@@ -350,9 +454,98 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
             "Id" integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
             "CustomerId" integer NOT NULL,
             "Date" timestamp with time zone NOT NULL,
-            "TotalAmount" numeric(18,2) NOT NULL
+            "TotalAmount" numeric(18,2) NOT NULL,
+            "DiscountAmount" numeric(18,2) NOT NULL DEFAULT 0,
+            "FinalAmount" numeric(18,2) NOT NULL DEFAULT 0,
+            "LoyaltyDiscountApplied" boolean NOT NULL DEFAULT false
         );
         """);
+
+    var salesColumns = await GetTableColumnsAsync(connection, providerName, "Sales");
+    if (!salesColumns.Contains("DiscountAmount"))
+    {
+        await EnsureSqlAsync(db, IsPostgresProvider(providerName)
+            ? "ALTER TABLE \"Sales\" ADD COLUMN \"DiscountAmount\" numeric(18,2) NOT NULL DEFAULT 0;"
+            : "ALTER TABLE \"Sales\" ADD COLUMN \"DiscountAmount\" numeric(18,2) NOT NULL DEFAULT 0;");
+        salesColumns.Add("DiscountAmount");
+    }
+
+    if (!salesColumns.Contains("FinalAmount"))
+    {
+        await EnsureSqlAsync(db, IsPostgresProvider(providerName)
+            ? "ALTER TABLE \"Sales\" ADD COLUMN \"FinalAmount\" numeric(18,2) NOT NULL DEFAULT 0;"
+            : "ALTER TABLE \"Sales\" ADD COLUMN \"FinalAmount\" numeric(18,2) NOT NULL DEFAULT 0;");
+        salesColumns.Add("FinalAmount");
+    }
+
+    if (!salesColumns.Contains("LoyaltyDiscountApplied"))
+    {
+        await EnsureSqlAsync(db, IsPostgresProvider(providerName)
+            ? "ALTER TABLE \"Sales\" ADD COLUMN \"LoyaltyDiscountApplied\" boolean NOT NULL DEFAULT false;"
+            : "ALTER TABLE \"Sales\" ADD COLUMN \"LoyaltyDiscountApplied\" INTEGER NOT NULL DEFAULT 0;");
+        salesColumns.Add("LoyaltyDiscountApplied");
+    }
+
+    await EnsureSqlAsync(db, "UPDATE \"Sales\" SET \"FinalAmount\" = \"TotalAmount\" WHERE \"FinalAmount\" = 0 AND \"TotalAmount\" <> 0;");
+
+    var creditColumns = new (string Name, string PostgresSql, string SqliteSql)[]
+    {
+        ("InvoiceNumber",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"InvoiceNumber\" character varying(50) NOT NULL DEFAULT '';",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"InvoiceNumber\" TEXT NOT NULL DEFAULT '';"),
+        ("PaymentStatus",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"PaymentStatus\" character varying(20) NOT NULL DEFAULT 'Paid';",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"PaymentStatus\" TEXT NOT NULL DEFAULT 'Paid';"),
+        ("PaidAmount",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"PaidAmount\" numeric(18,2) NOT NULL DEFAULT 0;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"PaidAmount\" numeric(18,2) NOT NULL DEFAULT 0;"),
+        ("RemainingAmount",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"RemainingAmount\" numeric(18,2) NOT NULL DEFAULT 0;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"RemainingAmount\" numeric(18,2) NOT NULL DEFAULT 0;"),
+        ("DueDate",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"DueDate\" timestamp with time zone NULL;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"DueDate\" TEXT NULL;"),
+        ("LastReminderSentAt",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"LastReminderSentAt\" timestamp with time zone NULL;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"LastReminderSentAt\" TEXT NULL;"),
+        ("ReminderCount",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"ReminderCount\" integer NOT NULL DEFAULT 0;",
+            "ALTER TABLE \"Sales\" ADD COLUMN \"ReminderCount\" INTEGER NOT NULL DEFAULT 0;")
+    };
+
+    foreach (var column in creditColumns)
+    {
+        if (!salesColumns.Contains(column.Name))
+        {
+            await EnsureSqlAsync(db, IsPostgresProvider(providerName) ? column.PostgresSql : column.SqliteSql);
+            salesColumns.Add(column.Name);
+        }
+    }
+
+    await EnsureSqlAsync(db, """
+        UPDATE "Sales"
+        SET "PaymentStatus" = 'Paid',
+            "PaidAmount" = COALESCE(NULLIF("FinalAmount", 0), "TotalAmount"),
+            "RemainingAmount" = 0
+        WHERE COALESCE("PaymentStatus", '') = '' OR "PaymentStatus" = 'Paid' AND "RemainingAmount" = 0 AND "PaidAmount" = 0;
+        """);
+
+    if (IsPostgresProvider(providerName))
+    {
+        await EnsureSqlAsync(db, """
+            UPDATE "Sales"
+            SET "InvoiceNumber" = 'INV-' || LPAD("Id"::text, 4, '0')
+            WHERE COALESCE("InvoiceNumber", '') = '';
+            """);
+    }
+    else
+    {
+        await EnsureSqlAsync(db, """
+            UPDATE "Sales"
+            SET "InvoiceNumber" = 'INV-' || printf('%04d', "Id")
+            WHERE COALESCE("InvoiceNumber", '') = '';
+            """);
+    }
 
     await EnsureTableAsync(
         db,
@@ -380,6 +573,207 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
         """);
 
     await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_SaleItems_SaleId\" ON \"SaleItems\" (\"SaleId\");");
+
+    await EnsureTableAsync(
+        db,
+        existingTables,
+        "PurchaseInvoices",
+        """
+        CREATE TABLE IF NOT EXISTS "PurchaseInvoices" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_PurchaseInvoices" PRIMARY KEY AUTOINCREMENT,
+            "VendorId" INTEGER NOT NULL,
+            "InvoiceNumber" TEXT NOT NULL,
+            "PurchaseDate" TEXT NOT NULL,
+            "TotalAmount" numeric(18,2) NOT NULL,
+            "CreatedAt" TEXT NOT NULL,
+            CONSTRAINT "FK_PurchaseInvoices_Vendors_VendorId" FOREIGN KEY ("VendorId") REFERENCES "Vendors" ("Id") ON DELETE RESTRICT
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS "PurchaseInvoices" (
+            "Id" integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            "VendorId" integer NOT NULL,
+            "InvoiceNumber" character varying(50) NOT NULL,
+            "PurchaseDate" timestamp with time zone NOT NULL,
+            "TotalAmount" numeric(18,2) NOT NULL,
+            "CreatedAt" timestamp with time zone NOT NULL,
+            CONSTRAINT "FK_PurchaseInvoices_Vendors_VendorId" FOREIGN KEY ("VendorId") REFERENCES "Vendors" ("Id") ON DELETE RESTRICT
+        );
+        """);
+
+    await EnsureSqlAsync(db, "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_PurchaseInvoices_InvoiceNumber\" ON \"PurchaseInvoices\" (\"InvoiceNumber\");");
+    await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_PurchaseInvoices_VendorId\" ON \"PurchaseInvoices\" (\"VendorId\");");
+
+    await EnsureTableAsync(
+        db,
+        existingTables,
+        "Appointments",
+        """
+        CREATE TABLE IF NOT EXISTS "Appointments" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_Appointments" PRIMARY KEY AUTOINCREMENT,
+            "CustomerId" INTEGER NOT NULL,
+            "VehicleId" INTEGER NOT NULL,
+            "AppointmentDate" TEXT NOT NULL,
+            "ServiceType" TEXT NOT NULL,
+            "Description" TEXT NOT NULL,
+            "Status" TEXT NOT NULL DEFAULT 'Pending',
+            "CreatedAt" TEXT NOT NULL,
+            CONSTRAINT "FK_Appointments_Customers_CustomerId" FOREIGN KEY ("CustomerId") REFERENCES "Customers" ("Id") ON DELETE CASCADE,
+            CONSTRAINT "FK_Appointments_CustomerVehicles_VehicleId" FOREIGN KEY ("VehicleId") REFERENCES "CustomerVehicles" ("Id") ON DELETE RESTRICT
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS "Appointments" (
+            "Id" integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            "CustomerId" integer NOT NULL,
+            "VehicleId" integer NOT NULL,
+            "AppointmentDate" timestamp with time zone NOT NULL,
+            "ServiceType" character varying(120) NOT NULL,
+            "Description" text NOT NULL,
+            "Status" character varying(40) NOT NULL DEFAULT 'Pending',
+            "CreatedAt" timestamp with time zone NOT NULL,
+            CONSTRAINT "FK_Appointments_Customers_CustomerId" FOREIGN KEY ("CustomerId") REFERENCES "Customers" ("Id") ON DELETE CASCADE,
+            CONSTRAINT "FK_Appointments_CustomerVehicles_VehicleId" FOREIGN KEY ("VehicleId") REFERENCES "CustomerVehicles" ("Id") ON DELETE RESTRICT
+        );
+        """);
+
+    await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_Appointments_CustomerId\" ON \"Appointments\" (\"CustomerId\");");
+    await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_Appointments_VehicleId\" ON \"Appointments\" (\"VehicleId\");");
+
+    await EnsureTableAsync(
+        db,
+        existingTables,
+        "PurchaseInvoiceItems",
+        """
+        CREATE TABLE IF NOT EXISTS "PurchaseInvoiceItems" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_PurchaseInvoiceItems" PRIMARY KEY AUTOINCREMENT,
+            "PurchaseInvoiceId" INTEGER NOT NULL,
+            "PartId" INTEGER NOT NULL,
+            "Quantity" INTEGER NOT NULL,
+            "UnitPrice" numeric(18,2) NOT NULL,
+            "SubTotal" numeric(18,2) NOT NULL,
+            CONSTRAINT "FK_PurchaseInvoiceItems_PurchaseInvoices_PurchaseInvoiceId" FOREIGN KEY ("PurchaseInvoiceId") REFERENCES "PurchaseInvoices" ("Id") ON DELETE CASCADE,
+            CONSTRAINT "FK_PurchaseInvoiceItems_Parts_PartId" FOREIGN KEY ("PartId") REFERENCES "Parts" ("Id") ON DELETE RESTRICT
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS "PurchaseInvoiceItems" (
+            "Id" integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            "PurchaseInvoiceId" integer NOT NULL,
+            "PartId" integer NOT NULL,
+            "Quantity" integer NOT NULL,
+            "UnitPrice" numeric(18,2) NOT NULL,
+            "SubTotal" numeric(18,2) NOT NULL,
+            CONSTRAINT "FK_PurchaseInvoiceItems_PurchaseInvoices_PurchaseInvoiceId" FOREIGN KEY ("PurchaseInvoiceId") REFERENCES "PurchaseInvoices" ("Id") ON DELETE CASCADE,
+            CONSTRAINT "FK_PurchaseInvoiceItems_Parts_PartId" FOREIGN KEY ("PartId") REFERENCES "Parts" ("Id") ON DELETE RESTRICT
+        );
+        """);
+
+    await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_PurchaseInvoiceItems_PurchaseInvoiceId\" ON \"PurchaseInvoiceItems\" (\"PurchaseInvoiceId\");");
+    await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_PurchaseInvoiceItems_PartId\" ON \"PurchaseInvoiceItems\" (\"PartId\");");
+
+    await EnsureTableAsync(
+        db,
+        existingTables,
+        "UnavailablePartRequests",
+        """
+        CREATE TABLE IF NOT EXISTS "UnavailablePartRequests" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_UnavailablePartRequests" PRIMARY KEY AUTOINCREMENT,
+            "CustomerId" INTEGER NOT NULL,
+            "PartName" TEXT NOT NULL,
+            "VehicleModel" TEXT NOT NULL,
+            "Description" TEXT NOT NULL,
+            "Status" TEXT NOT NULL DEFAULT 'Pending',
+            "CreatedAt" TEXT NOT NULL,
+            CONSTRAINT "FK_UnavailablePartRequests_Customers_CustomerId" FOREIGN KEY ("CustomerId") REFERENCES "Customers" ("Id") ON DELETE CASCADE
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS "UnavailablePartRequests" (
+            "Id" integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            "CustomerId" integer NOT NULL,
+            "PartName" character varying(160) NOT NULL,
+            "VehicleModel" character varying(120) NOT NULL,
+            "Description" text NOT NULL,
+            "Status" character varying(40) NOT NULL DEFAULT 'Pending',
+            "CreatedAt" timestamp with time zone NOT NULL,
+            CONSTRAINT "FK_UnavailablePartRequests_Customers_CustomerId" FOREIGN KEY ("CustomerId") REFERENCES "Customers" ("Id") ON DELETE CASCADE
+        );
+        """);
+
+    await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_UnavailablePartRequests_CustomerId\" ON \"UnavailablePartRequests\" (\"CustomerId\");");
+
+    await EnsureRequestWorkflowColumnsAsync(db, connection, providerName, "Appointments");
+    await EnsureRequestWorkflowColumnsAsync(db, connection, providerName, "UnavailablePartRequests");
+
+    await EnsureTableAsync(
+        db,
+        existingTables,
+        "ServiceReviews",
+        """
+        CREATE TABLE IF NOT EXISTS "ServiceReviews" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_ServiceReviews" PRIMARY KEY AUTOINCREMENT,
+            "CustomerId" INTEGER NOT NULL,
+            "Rating" INTEGER NOT NULL,
+            "Comment" TEXT NOT NULL,
+            "CreatedAt" TEXT NOT NULL,
+            CONSTRAINT "FK_ServiceReviews_Customers_CustomerId" FOREIGN KEY ("CustomerId") REFERENCES "Customers" ("Id") ON DELETE CASCADE
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS "ServiceReviews" (
+            "Id" integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            "CustomerId" integer NOT NULL,
+            "Rating" integer NOT NULL,
+            "Comment" character varying(1000) NOT NULL,
+            "CreatedAt" timestamp with time zone NOT NULL,
+            CONSTRAINT "FK_ServiceReviews_Customers_CustomerId" FOREIGN KEY ("CustomerId") REFERENCES "Customers" ("Id") ON DELETE CASCADE
+        );
+        """);
+
+    await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_ServiceReviews_CustomerId\" ON \"ServiceReviews\" (\"CustomerId\");");
+
+    await EnsureTableAsync(
+        db,
+        existingTables,
+        "AppNotifications",
+        """
+        CREATE TABLE IF NOT EXISTS "AppNotifications" (
+            "Id" INTEGER NOT NULL CONSTRAINT "PK_AppNotifications" PRIMARY KEY AUTOINCREMENT,
+            "Audience" TEXT NOT NULL,
+            "UserId" INTEGER NULL,
+            "Type" TEXT NOT NULL,
+            "Title" TEXT NOT NULL,
+            "Message" TEXT NOT NULL,
+            "LinkUrl" TEXT NULL,
+            "DedupeKey" TEXT NOT NULL,
+            "IsRead" INTEGER NOT NULL DEFAULT 0,
+            "IsDismissed" INTEGER NOT NULL DEFAULT 0,
+            "CreatedAt" TEXT NOT NULL,
+            "ReferenceId" INTEGER NULL,
+            "ReferenceType" TEXT NULL
+        );
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS "AppNotifications" (
+            "Id" integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+            "Audience" character varying(20) NOT NULL,
+            "UserId" integer NULL,
+            "Type" character varying(40) NOT NULL,
+            "Title" character varying(160) NOT NULL,
+            "Message" character varying(1000) NOT NULL,
+            "LinkUrl" character varying(200) NULL,
+            "DedupeKey" character varying(120) NOT NULL,
+            "IsRead" boolean NOT NULL DEFAULT false,
+            "IsDismissed" boolean NOT NULL DEFAULT false,
+            "CreatedAt" timestamp with time zone NOT NULL,
+            "ReferenceId" integer NULL,
+            "ReferenceType" character varying(40) NULL
+        );
+        """);
+
+    await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_AppNotifications_DedupeKey\" ON \"AppNotifications\" (\"DedupeKey\");");
+    await EnsureSqlAsync(db, "CREATE INDEX IF NOT EXISTS \"IX_AppNotifications_Audience_UserId_IsDismissed\" ON \"AppNotifications\" (\"Audience\", \"UserId\", \"IsDismissed\");");
 
     var existingColumns = await GetTableColumnsAsync(connection, providerName, "ServiceHistories");
 
@@ -433,6 +827,28 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
 
         existingColumns.Add("ReminderSentAt");
     }
+
+    if (!existingColumns.Contains("RelatedSaleId"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"ServiceHistories\" ADD COLUMN \"RelatedSaleId\" integer NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, "ALTER TABLE \"ServiceHistories\" ADD COLUMN \"RelatedSaleId\" INTEGER NULL;");
+        }
+
+        existingColumns.Add("RelatedSaleId");
+    }
+
+    await EnsureSqlAsync(
+        db,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS "IX_ServiceHistories_RelatedSaleId"
+        ON "ServiceHistories" ("RelatedSaleId")
+        WHERE "RelatedSaleId" IS NOT NULL;
+        """);
 
     if (existingColumns.Contains("HistoryType") && existingColumns.Contains("Title"))
     {
@@ -551,6 +967,44 @@ static async Task EnsureOperationalSchemaAsync(AppDbContext db)
         }
 
         vehicleColumns.Add("CreatedAt");
+    }
+
+    if (IsPostgresProvider(providerName))
+    {
+        await RepairAllPostgresTimestampColumnsAsync(db);
+    }
+}
+
+static async Task RepairAllPostgresTimestampColumnsAsync(AppDbContext db)
+{
+    (string Table, string Column)[] columns =
+    [
+        ("Sales", "Date"),
+        ("Sales", "DueDate"),
+        ("Sales", "LastReminderSentAt"),
+        ("ServiceHistories", "ServiceDate"),
+        ("ServiceHistories", "ReminderSentAt"),
+        ("Customers", "CreatedAt"),
+        ("Customers", "LastLoyaltyNotifiedAt"),
+        ("CustomerVehicles", "CreatedAt"),
+        ("Appointments", "AppointmentDate"),
+        ("Appointments", "CreatedAt"),
+        ("Parts", "CreatedAt"),
+        ("Parts", "LastLowStockNotifiedAt"),
+        ("Users", "CreatedAt"),
+        ("Users", "VerificationExpiresAt"),
+        ("Users", "PasswordResetExpiresAt"),
+        ("AppNotifications", "CreatedAt"),
+        ("PurchaseInvoices", "PurchaseDate"),
+        ("PurchaseInvoices", "CreatedAt"),
+        ("UnavailablePartRequests", "CreatedAt"),
+        ("ServiceReviews", "CreatedAt"),
+        ("Vendors", "CreatedAt"),
+    ];
+
+    foreach (var (table, column) in columns)
+    {
+        await EnsurePostgresTimestampColumnAsync(db, table, column);
     }
 }
 
@@ -951,6 +1405,52 @@ static async Task EnsureSqlAsync(AppDbContext db, string sql)
     await db.Database.ExecuteSqlRawAsync(sql);
 }
 
+/// <summary>
+/// Repairs legacy schema drift where date columns were created as TEXT on PostgreSQL.
+/// Uses pg_catalog so quoted identifiers (e.g. "Sales"."Date") are detected reliably.
+/// </summary>
+static async Task EnsurePostgresTimestampColumnAsync(AppDbContext db, string tableName, string columnName)
+{
+    var sql = $@"
+DO $ensure_ts$
+DECLARE
+    current_type text;
+BEGIN
+    SELECT t.typname
+    INTO current_type
+    FROM pg_class c
+    INNER JOIN pg_namespace n ON n.oid = c.relnamespace
+    INNER JOIN pg_attribute a ON a.attrelid = c.oid
+    INNER JOIN pg_type t ON a.atttypid = t.oid
+    WHERE n.nspname = 'public'
+      AND c.relname = '{tableName}'
+      AND a.attname = '{columnName}'
+      AND a.attnum > 0
+      AND NOT a.attisdropped;
+
+    IF current_type IS NULL THEN
+        RETURN;
+    END IF;
+
+    IF current_type IN ('text', 'varchar', 'bpchar') THEN
+        EXECUTE format(
+            'ALTER TABLE %I ALTER COLUMN %I TYPE timestamp with time zone USING (
+                CASE
+                    WHEN %I IS NULL THEN NULL
+                    WHEN btrim(%I::text) = '''' THEN NULL
+                    ELSE %I::timestamptz
+                END)',
+            '{tableName}',
+            '{columnName}',
+            '{columnName}',
+            '{columnName}',
+            '{columnName}');
+    END IF;
+END $ensure_ts$;";
+
+    await EnsureSqlAsync(db, sql);
+}
+
 static bool LooksLikePostgresConnectionString(string connectionString)
 {
     if (string.IsNullOrWhiteSpace(connectionString))
@@ -1030,8 +1530,65 @@ static bool IsPostgresProvider(string? providerName) =>
     !string.IsNullOrWhiteSpace(providerName)
     && providerName.Contains("Npgsql", StringComparison.OrdinalIgnoreCase);
 
+static async Task EnsureRequestWorkflowColumnsAsync(
+    AppDbContext db,
+    System.Data.Common.DbConnection connection,
+    string providerName,
+    string tableName)
+{
+    var columns = await GetTableColumnsAsync(connection, providerName, tableName);
+
+    if (!columns.Contains("AdminNotes"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"AdminNotes\" text NOT NULL DEFAULT '';");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"AdminNotes\" TEXT NOT NULL DEFAULT '';");
+        }
+
+        columns.Add("AdminNotes");
+    }
+
+    if (!columns.Contains("UpdatedAt"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"UpdatedAt\" timestamp with time zone NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"UpdatedAt\" TEXT NULL;");
+        }
+
+        columns.Add("UpdatedAt");
+    }
+
+    if (!columns.Contains("StatusUpdatedAt"))
+    {
+        if (IsPostgresProvider(providerName))
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"StatusUpdatedAt\" timestamp with time zone NULL;");
+        }
+        else
+        {
+            await EnsureSqlAsync(db, $"ALTER TABLE \"{tableName}\" ADD COLUMN \"StatusUpdatedAt\" TEXT NULL;");
+        }
+    }
+}
+
 static string NormalizeEmail(string? email) =>
     (email ?? string.Empty).Trim().ToLowerInvariant();
 
 static string NormalizeStaffRole(string? role) =>
-    string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Staff";
+    (role ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "admin" => "Admin",
+        "sales staff" => "Sales Staff",
+        "inventory staff" => "Inventory Staff",
+        "receptionist" => "Receptionist",
+        "accountant" => "Accountant",
+        _ => "Sales Staff"
+    };

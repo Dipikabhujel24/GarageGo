@@ -213,6 +213,7 @@ namespace Backend.Controllers
                 Amount = history.Amount,
                 PaymentStatus = NormalizePaymentStatus(history.PaymentStatus),
                 InvoiceNumber = history.InvoiceNumber,
+                RelatedSaleId = history.RelatedSaleId,
                 InvoiceUrl = $"{baseUrl}/api/customers/service-history/{history.Id}/pdf",
                 ServiceDate = history.ServiceDate
             };

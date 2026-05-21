@@ -1,0 +1,113 @@
+.admin-data-toolbar {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #faf8ff 100%);
+  border: 1px solid rgba(91, 45, 130, 0.14);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(45, 27, 78, 0.06);
+}
+
+.admin-data-toolbar__row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-data-toolbar__row--secondary {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.admin-data-toolbar__field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.admin-data-toolbar__field span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary-dark);
+}
+
+.admin-data-toolbar__field input,
+.admin-data-toolbar__field select {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(91, 45, 130, 0.18);
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--text-dark);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.admin-data-toolbar__field input:focus,
+.admin-data-toolbar__field select:focus {
+  outline: none;
+  border-color: rgba(240, 98, 146, 0.65);
+  box-shadow: 0 0 0 3px rgba(240, 98, 146, 0.12);
+}
+
+.admin-data-toolbar__actions {
+  display: flex;
+  align-items: flex-end;
+}
+
+.admin-data-toolbar__summary {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-500);
+}
+
+.admin-status-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-status-chip--neutral {
+  background: rgba(91, 45, 130, 0.1);
+  color: var(--primary-dark);
+}
+
+.admin-status-chip--success {
+  background: rgba(34, 197, 94, 0.14);
+  color: #166534;
+}
+
+.admin-status-chip--warning {
+  background: rgba(245, 158, 11, 0.16);
+  color: #92400e;
+}
+
+.admin-status-chip--danger {
+  background: rgba(239, 68, 68, 0.14);
+  color: #991b1b;
+}
+
+.admin-status-chip--info {
+  background: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+}
+
+.admin-export-table-hint {
+  margin: 0 0 10px;
+  font-size: 0.84rem;
+  color: var(--ink-500);
+}
+
+@media (max-width: 900px) {
+  .admin-data-toolbar__row,
+  .admin-data-toolbar__row--secondary {
+    grid-template-columns: 1fr;
+  }
+}

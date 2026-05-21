@@ -15,5 +15,11 @@ namespace Backend.DTOs
 
         [MaxLength(255)]
         public string? Password { get; set; }
+
+        [MaxLength(30)]
+        public string? Role { get; set; }
+
+        [MaxLength(20)]
+        public string? Status { get; set; }
     }
 }

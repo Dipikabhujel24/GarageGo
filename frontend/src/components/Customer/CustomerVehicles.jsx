@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE, getApiErrorMessage, readApiResponse } from '../../config/api';
 import { clearAuthSession, getStoredToken } from '../../utils/authSession';
+import SecureForm from '../SecureForm';
 import './CustomerModule.css';
 
 function CustomerVehicles() {
@@ -138,7 +139,7 @@ function CustomerVehicles() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="form-grid vehicle-form-grid">
+            <SecureForm onSubmit={handleSubmit} className="form-grid vehicle-form-grid" includePassword={false}>
               <div className="form-group">
                 <label htmlFor="make">Make</label>
                 <input id="make" name="make" value={formData.make} onChange={handleChange} required />
@@ -164,7 +165,7 @@ function CustomerVehicles() {
                   Back to Dashboard
                 </button>
               </div>
-            </form>
+            </SecureForm>
           </section>
 
           <section className="customer-form-card">

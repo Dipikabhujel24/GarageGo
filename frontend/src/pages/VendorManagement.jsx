@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import AdminDataToolbar from '../components/admin/AdminDataToolbar';
 import VendorForm from '../components/VendorForm';
 import VendorList from '../components/VendorList';
 import {
@@ -7,6 +8,14 @@ import {
   getVendors,
   updateVendor,
 } from '../services/api';
+import { includesText, matchSearchFields } from '../utils/adminFilters';
+
+const vendorSearchGetters = {
+  name: (vendor) => vendor.vendorName,
+  company: (vendor) => vendor.companyName,
+  email: (vendor) => vendor.email,
+  phone: (vendor) => vendor.phone,
+};
 
 function VendorManagement() {
   const [vendors, setVendors] = useState([]);
@@ -14,6 +23,11 @@ function VendorManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('success');
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [recencyFilter, setRecencyFilter] = useState('all');
 
   const loadVendors = async () => {
     setIsLoading(true);
@@ -32,6 +46,40 @@ function VendorManagement() {
   useEffect(() => {
     loadVendors();
   }, []);
+
+  const filteredVendors = useMemo(() => {
+    let list = [...vendors];
+
+    if (statusFilter === 'active') {
+      list = list.filter((vendor) => (vendor.status || 'Active').toLowerCase() === 'active');
+    } else if (statusFilter === 'inactive') {
+      list = list.filter((vendor) => (vendor.status || 'Active').toLowerCase() !== 'active');
+    }
+
+    if (recencyFilter === 'recent') {
+      list = [...list].sort((left, right) => {
+        const leftDate = new Date(left.createdAt || 0).getTime();
+        const rightDate = new Date(right.createdAt || 0).getTime();
+        return rightDate - leftDate || right.id - left.id;
+      }).slice(0, 15);
+    }
+
+    if (searchQuery.trim()) {
+      const fields = searchField === 'all' ? ['all'] : [searchField];
+      list = list.filter((vendor) =>
+        matchSearchFields(vendor, searchQuery, fields, vendorSearchGetters)
+      );
+    }
+
+    return list;
+  }, [vendors, searchQuery, searchField, statusFilter, recencyFilter]);
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setSearchField('all');
+    setStatusFilter('all');
+    setRecencyFilter('all');
+  };
 
   const handleCreateVendor = async (data) => {
     await createVendor(data);
@@ -117,11 +165,51 @@ function VendorManagement() {
             </div>
           </div>
 
+          <AdminDataToolbar
+            searchValue={searchQuery}
+            onSearchChange={setSearchQuery}
+            searchPlaceholder="Search vendors..."
+            searchField={searchField}
+            onSearchFieldChange={setSearchField}
+            searchFields={[
+              { value: 'all', label: 'All fields' },
+              { value: 'name', label: 'Vendor name' },
+              { value: 'company', label: 'Company name' },
+              { value: 'email', label: 'Email' },
+              { value: 'phone', label: 'Phone' },
+            ]}
+            selects={[
+              {
+                id: 'status',
+                label: 'Status',
+                value: statusFilter,
+                onChange: setStatusFilter,
+                options: [
+                  { value: 'all', label: 'All vendors' },
+                  { value: 'active', label: 'Active vendors' },
+                  { value: 'inactive', label: 'Inactive vendors' },
+                ],
+              },
+              {
+                id: 'recency',
+                label: 'Recency',
+                value: recencyFilter,
+                onChange: setRecencyFilter,
+                options: [
+                  { value: 'all', label: 'All time' },
+                  { value: 'recent', label: 'Recently added' },
+                ],
+              },
+            ]}
+            onClear={handleClearFilters}
+            resultText={`Showing ${filteredVendors.length} of ${vendors.length} vendors`}
+          />
+
           {isLoading ? (
             <p className="status-text">Loading vendors...</p>
           ) : (
             <VendorList
-              vendors={vendors}
+              vendors={filteredVendors}
               onEdit={setSelectedVendor}
               onDelete={handleDeleteVendor}
             />

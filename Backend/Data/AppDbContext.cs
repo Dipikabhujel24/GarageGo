@@ -21,6 +21,9 @@ namespace Backend.Data
         public DbSet<Appointment> Appointments { get; set; } = null!;
         public DbSet<UnavailablePartRequest> UnavailablePartRequests { get; set; } = null!;
         public DbSet<ServiceReview> ServiceReviews { get; set; } = null!;
+        public DbSet<PurchaseInvoice> PurchaseInvoices { get; set; } = null!;
+        public DbSet<PurchaseInvoiceItem> PurchaseInvoiceItems { get; set; } = null!;
+        public DbSet<AppNotification> AppNotifications { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -104,6 +107,16 @@ namespace Backend.Data
                 entity.Property(history => history.PaymentStatus).HasMaxLength(20);
                 entity.Property(history => history.InvoiceNumber).HasMaxLength(50);
                 entity.Property(history => history.Amount).HasColumnType("numeric(18,2)");
+                entity.Property(history => history.ServiceDate).HasColumnType("timestamp with time zone");
+                entity.Property(history => history.ReminderSentAt).HasColumnType("timestamp with time zone");
+
+                entity.HasIndex(history => history.RelatedSaleId)
+                    .IsUnique();
+
+                entity.HasOne(history => history.RelatedSale)
+                    .WithMany()
+                    .HasForeignKey(history => history.RelatedSaleId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             modelBuilder.Entity<Vendor>()
@@ -120,13 +133,64 @@ namespace Backend.Data
                 .Property(part => part.Price)
                 .HasColumnType("numeric(18,2)");
 
-            modelBuilder.Entity<Sale>()
-                .Property(sale => sale.TotalAmount)
-                .HasColumnType("numeric(18,2)");
+            modelBuilder.Entity<PurchaseInvoice>(entity =>
+            {
+                entity.HasIndex(invoice => invoice.InvoiceNumber).IsUnique();
+                entity.Property(invoice => invoice.InvoiceNumber).HasMaxLength(50);
+                entity.Property(invoice => invoice.TotalAmount).HasColumnType("numeric(18,2)");
+
+                entity.HasOne(invoice => invoice.Vendor)
+                    .WithMany()
+                    .HasForeignKey(invoice => invoice.VendorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<PurchaseInvoiceItem>(entity =>
+            {
+                entity.Property(item => item.UnitPrice).HasColumnType("numeric(18,2)");
+                entity.Property(item => item.SubTotal).HasColumnType("numeric(18,2)");
+
+                entity.HasOne(item => item.PurchaseInvoice)
+                    .WithMany(invoice => invoice.Items)
+                    .HasForeignKey(item => item.PurchaseInvoiceId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(item => item.Part)
+                    .WithMany()
+                    .HasForeignKey(item => item.PartId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Sale>(entity =>
+            {
+                entity.Property(sale => sale.TotalAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.DiscountAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.FinalAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.PaidAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.RemainingAmount).HasColumnType("numeric(18,2)");
+                entity.Property(sale => sale.InvoiceNumber).HasMaxLength(50);
+                entity.Property(sale => sale.PaymentStatus).HasMaxLength(20);
+                entity.Property(sale => sale.Date).HasColumnType("timestamp with time zone");
+                entity.Property(sale => sale.DueDate).HasColumnType("timestamp with time zone");
+                entity.Property(sale => sale.LastReminderSentAt).HasColumnType("timestamp with time zone");
+            });
 
             modelBuilder.Entity<SaleItem>()
                 .Property(item => item.Price)
                 .HasColumnType("numeric(18,2)");
+
+            modelBuilder.Entity<AppNotification>(entity =>
+            {
+                entity.HasIndex(notification => notification.DedupeKey);
+                entity.HasIndex(notification => new { notification.Audience, notification.UserId, notification.IsDismissed });
+                entity.Property(notification => notification.Audience).HasMaxLength(20);
+                entity.Property(notification => notification.Type).HasMaxLength(40);
+                entity.Property(notification => notification.Title).HasMaxLength(160);
+                entity.Property(notification => notification.Message).HasMaxLength(1000);
+                entity.Property(notification => notification.LinkUrl).HasMaxLength(200);
+                entity.Property(notification => notification.DedupeKey).HasMaxLength(120);
+                entity.Property(notification => notification.ReferenceType).HasMaxLength(40);
+            });
         }
     }
 }

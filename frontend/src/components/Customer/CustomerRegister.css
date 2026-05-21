@@ -35,7 +35,7 @@
   position: relative;
   padding: clamp(26px, 4vw, 42px) clamp(22px, 4vw, 50px);
   text-align: left;
-  background: linear-gradient(138deg, var(--blue-950), var(--blue-800) 45%, var(--blue-500));
+  background: linear-gradient(138deg, var(--primary-dark), var(--secondary-purple) 45%, var(--soft-lavender));
   color: var(--white);
 }
 
@@ -61,6 +61,15 @@
   margin: 10px 0 0;
   color: rgba(255, 255, 255, 0.9);
   line-height: 1.6;
+}
+
+.register-header--brand .brand-logo-wrap--auth,
+.register-header--brand .brand-logo-wrap {
+  margin-bottom: 16px;
+}
+
+.register-header--brand h2 {
+  margin-top: 4px;
 }
 
 .register-form {
@@ -126,8 +135,8 @@
 
 .register-form .form-group input:focus {
   outline: none;
-  border-color: var(--blue-500);
-  box-shadow: 0 0 0 4px rgba(50, 150, 255, 0.16);
+  border-color: var(--button-pink);
+  box-shadow: 0 0 0 4px rgba(var(--accent-pink-rgb), 0.22);
 }
 
 .register-form .submit-btn {

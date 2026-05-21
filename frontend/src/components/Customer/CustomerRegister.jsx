@@ -3,7 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { API_BASE, apiUrl, getApiErrorMessage, logApiResponse, readApiResponse } from '../../config/api';
 import { getDashboardPathForRole } from '../../config/roleBasedNav';
 import { storeAuthSession } from '../../utils/authSession';
-import './CustomerRegister.css'; // Optional: for basic styling if needed
+import SecureForm from '../SecureForm';
+import {
+  emailInputAutofillProps,
+  newPasswordAutofillProps,
+  numberInputAutofillProps,
+  otpInputAutofillProps,
+  textInputAutofillProps,
+} from '../../utils/formAutofill';
+import BrandLogo from '../BrandLogo';
+import './CustomerRegister.css';
 
 const CustomerRegister = () => {
     const navigate = useNavigate();
@@ -75,6 +84,9 @@ const CustomerRegister = () => {
                     setMessage(data.message || 'Verification required. Enter the code sent to your email.');
                     setShowOtp(true);
                 }
+            } else if (response.status === 503 && data?.emailDeliveryFailed) {
+                setError(getApiErrorMessage(data, 'Verification email could not be sent. Check SMTP settings or try again in a moment.'));
+                setShowOtp(true);
             } else {
                 setError(getApiErrorMessage(data, 'Registration failed. Please check the inputs.'));
                 if(data.errors) {
@@ -146,7 +158,10 @@ const CustomerRegister = () => {
     return (
         <div className="register-page">
             <div className="register-container">
-                <div className="register-header">
+                <div className="register-header register-header--brand">
+                    <div className="brand-logo-wrap brand-logo-wrap--auth">
+                        <BrandLogo variant="auth" />
+                    </div>
                     <h2>Complete Your GarageGo Profile</h2>
                     <p>Create your customer account and register your first vehicle in one step.</p>
                 </div>
@@ -155,24 +170,24 @@ const CustomerRegister = () => {
                     {error && <div className="error-message">{error}</div>}
 
                     {!showOtp && (
-                        <form onSubmit={handleSubmit}>
+                        <SecureForm onSubmit={handleSubmit}>
                         <fieldset>
                             <legend>Personal Information</legend>
                             <div className="form-group">
                                 <label>Name</label>
-                                <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Matthew Penuss" required />
+                                <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="Matthew Penuss" required {...textInputAutofillProps} />
                             </div>
                             <div className="form-group">
                                 <label>Email</label>
-                                <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="example@email.com" required />
+                                <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="example@email.com" required {...emailInputAutofillProps} />
                             </div>
                             <div className="form-group">
                                 <label>Phone</label>
-                                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+1 123 456 7890" required />
+                                <input type="tel" name="phone" value={formData.phone} onChange={handleChange} placeholder="+1 123 456 7890" required {...textInputAutofillProps} />
                             </div>
                             <div className="form-group">
                                 <label>Password</label>
-                                <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="********" required minLength="6" />
+                                <input type="password" name="password" value={formData.password} onChange={handleChange} placeholder="********" required minLength={6} {...newPasswordAutofillProps} />
                             </div>
                             <div className="form-group">
                                 <label>Address</label>
@@ -201,18 +216,18 @@ const CustomerRegister = () => {
                         </fieldset>
 
                         <button type="submit" className="submit-btn" disabled={loading}>{loading ? 'Creating Account...' : 'Complete Profile'}</button>
-                    </form>
+                        </SecureForm>
                     )}
 
                     {showOtp && (
-                        <form onSubmit={handleVerify}>
+                        <SecureForm includePassword={false} onSubmit={handleVerify}>
                             <div className="form-group">
                                 <label>Verification code</label>
-                                <input type="text" name="otp" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="123456" required />
+                                <input type="text" name="otp" value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="123456" required {...otpInputAutofillProps} />
                             </div>
                             <button type="submit" className="submit-btn" disabled={loading}>{loading ? 'Verifying...' : 'Verify Email'}</button>
                             <button type="button" className="link-btn" onClick={handleResend} disabled={loading}>Resend code</button>
-                        </form>
+                        </SecureForm>
                     )}
 
                     <div className="login-link-container">

@@ -1,60 +1,83 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { getFilteredNav } from '../config/roleBasedNav';
+import React, { useMemo } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { getFilteredSidebarNav, isPathActive } from '../config/roleBasedNav';
 import { getStoredAuthUser } from '../utils/authSession';
+import BrandLogo from './BrandLogo';
+import SidebarNavAccordion from './SidebarNavAccordion';
+import SidebarNavIcon from './SidebarNavIcon';
 
 function Sidebar({ sidebarOpen, setSidebarOpen }) {
+  const location = useLocation();
   const userRole = getStoredAuthUser()?.role;
+  const navBlocks = useMemo(() => getFilteredSidebarNav(userRole), [userRole]);
 
-  const navGroups = getFilteredNav(userRole);
+  const closeMobileNav = () => {
+    if (setSidebarOpen) {
+      setSidebarOpen(false);
+    }
+  };
+
   return (
     <aside className={`app-sidebar ${sidebarOpen ? 'mobile-open' : ''}`}>
-      <div className="brand-block">
-        <div style={{display:'flex',alignItems:'center',gap:12}}>
-          <div className="brand-dot" />
-          <div>
-            <p className="brand-title">GarageGo</p>
-            <p className="brand-subtitle">Unified Workspace</p>
-          </div>
-        </div>
-
-        <div className="brand-avatar" aria-hidden>
-          <div className="avatar-placeholder">GG</div>
-        </div>
+      <div className="brand-block brand-block--logo">
+        <BrandLogo variant="sidebar" showSubtitle subtitle="Unified Workspace" />
       </div>
 
       <button
         className="mobile-close"
         aria-label="Close navigation"
-        onClick={() => setSidebarOpen && setSidebarOpen(false)}
+        onClick={closeMobileNav}
       >
         ✕
       </button>
 
       <nav className="sidebar-nav" aria-label="GarageGo navigation">
-        {navGroups.map((group) => (
-          <section key={group.title} className="sidebar-nav-group">
-            <p className="sidebar-nav-title">{group.title}</p>
-            <div className="sidebar-nav-items">
-              {group.items.map((navItem) => (
-                <NavLink
-                  key={navItem.path}
-                  to={navItem.path}
-                  end={navItem.path === '/dashboard' || navItem.path === '/staff/dashboard' || navItem.path === '/admin/dashboard'}
-                  className={({ isActive }) =>
-                    isActive ? 'nav-item nav-item-active' : 'nav-item'
-                  }
-                >
-                  {navItem.label}
-                </NavLink>
-              ))}
-            </div>
-          </section>
-        ))}
+        {navBlocks.map((block) => {
+          if (block.type === 'section') {
+            return (
+              <p key={`section-${block.title}`} className="sidebar-nav-title">
+                {block.title}
+              </p>
+            );
+          }
+
+          if (block.type === 'link') {
+            return (
+              <NavLink
+                key={block.path}
+                to={block.path}
+                end={block.end}
+                className={({ isActive }) => {
+                  const active = isActive || isPathActive(location.pathname, block.path, block.end);
+                  return active ? 'nav-item nav-item-active' : 'nav-item';
+                }}
+                onClick={closeMobileNav}
+              >
+                {block.icon ? <SidebarNavIcon name={block.icon} /> : null}
+                <span className="nav-item-label">{block.label}</span>
+              </NavLink>
+            );
+          }
+
+          if (block.type === 'accordion') {
+            return (
+              <SidebarNavAccordion
+                key={block.id}
+                id={block.id}
+                label={block.label}
+                icon={block.icon}
+                children={block.children}
+                onNavigate={closeMobileNav}
+              />
+            );
+          }
+
+          return null;
+        })}
       </nav>
 
       <div className="sidebar-footer">
-        <small style={{ color: 'rgba(255,255,255,0.65)' }}>v1.0</small>
+        <small>v1.0</small>
       </div>
     </aside>
   );

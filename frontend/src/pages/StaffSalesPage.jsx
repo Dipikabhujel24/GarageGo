@@ -1,22 +1,67 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createSale, extractApiError, getSalesCatalog } from '../services/api';
+import { garageStaffRoles } from '../config/roleBasedNav';
 import { saveStoredInvoice } from '../utils/invoiceStorage';
+import { getStoredAuthUser } from '../utils/authSession';
+import {
+  numberInputAutofillProps,
+} from '../utils/formAutofill';
 import './StaffSalesPage.css';
+
+function formatCurrency(value) {
+  return `Rs. ${Number(value || 0).toFixed(2)}`;
+}
+
+function computeTotals(cartItems) {
+  const subtotal = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  const loyaltyDiscountApplied = subtotal > 5000;
+  const discountAmount = loyaltyDiscountApplied ? subtotal * 0.1 : 0;
+  const finalAmount = subtotal - discountAmount;
+  const loyaltyPointsEarned = Math.floor(finalAmount / 100);
+
+  return {
+    subtotal,
+    discountAmount,
+    finalAmount,
+    loyaltyDiscountApplied,
+    loyaltyPointsEarned,
+  };
+}
+
+function SummaryRow({ label, value, highlight = false }) {
+  return (
+    <div className={`sales-summary__row${highlight ? ' sales-summary__row--highlight' : ''}`}>
+      <span>{label}</span>
+      <span>{value}</span>
+    </div>
+  );
+}
 
 function StaffSalesPage() {
   const navigate = useNavigate();
+  const userRole = getStoredAuthUser()?.role;
+  const canAccessSales = userRole === 'Admin' || garageStaffRoles.includes(userRole);
+
   const [catalog, setCatalog] = useState({ parts: [], customers: [] });
   const [customerId, setCustomerId] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [selectedPartId, setSelectedPartId] = useState('');
+  const [partId, setPartId] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [price, setPrice] = useState(0);
   const [cartItems, setCartItems] = useState([]);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+  const [paymentStatus, setPaymentStatus] = useState('Paid');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [dueDate, setDueDate] = useState('');
 
   useEffect(() => {
+    if (!canAccessSales) {
+      setIsLoadingCatalog(false);
+      return undefined;
+    }
+
     let mounted = true;
 
     const loadCatalog = async () => {
@@ -35,7 +80,7 @@ function StaffSalesPage() {
         });
       } catch (error) {
         if (mounted) {
-          setFeedback({ type: 'error', message: `Unable to load sales catalog: ${extractApiError(error)}` });
+          setFeedback({ type: 'error', message: `Unable to load catalog: ${extractApiError(error)}` });
         }
       } finally {
         if (mounted) {
@@ -49,54 +94,70 @@ function StaffSalesPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [canAccessSales]);
 
-  const selectedCustomer = useMemo(
+  const matchedCustomer = useMemo(
     () => catalog.customers.find((customer) => String(customer.id) === String(customerId)),
     [catalog.customers, customerId]
   );
 
-  const selectedPart = useMemo(
-    () => catalog.parts.find((part) => String(part.id) === String(selectedPartId)),
-    [catalog.parts, selectedPartId]
+  const matchedPart = useMemo(
+    () => catalog.parts.find((part) => String(part.id) === String(partId)),
+    [catalog.parts, partId]
   );
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+  const totals = useMemo(() => computeTotals(cartItems), [cartItems]);
 
-  const resetLineItemForm = () => {
-    setSelectedPartId('');
-    setQuantity(1);
+  const handlePartIdChange = (value) => {
+    setPartId(value);
+    const part = catalog.parts.find((entry) => String(entry.id) === String(value));
+    if (part) {
+      setPrice(Number(part.price || 0));
+    }
   };
 
   const handleAddToCart = () => {
-    const parsedPartId = Number(selectedPartId);
+    const parsedPartId = Number(partId);
     const parsedQuantity = Number(quantity);
-    const chosenPart = catalog.parts.find((part) => part.id === parsedPartId);
+    const parsedPrice = Number(price);
+    const chosenPart = catalog.parts.find((entry) => entry.id === parsedPartId);
 
     if (!chosenPart) {
-      alert('Please select a valid part.');
+      setFeedback({ type: 'error', message: 'Enter a valid Part ID from inventory.' });
       return;
     }
 
     if (!parsedQuantity || parsedQuantity <= 0) {
-      alert('Please enter a valid quantity.');
+      setFeedback({ type: 'error', message: 'Quantity must be greater than zero.' });
       return;
     }
 
+    if (parsedPrice < 0) {
+      setFeedback({ type: 'error', message: 'Price cannot be negative.' });
+      return;
+    }
+
+    const unitPrice = parsedPrice > 0 ? parsedPrice : Number(chosenPart.price || 0);
     const existingItem = cartItems.find((item) => item.partId === parsedPartId);
     const existingQuantity = existingItem ? existingItem.quantity : 0;
 
     if (chosenPart.quantity < existingQuantity + parsedQuantity) {
-      alert(`Only ${chosenPart.quantity} units of ${chosenPart.partName} are available.`);
+      setFeedback({
+        type: 'error',
+        message: `Not enough stock for Part ID ${chosenPart.id} (${chosenPart.partName}). Available: ${chosenPart.quantity}.`,
+      });
       return;
     }
 
+    setFeedback({ type: '', message: '' });
     setCartItems((previousItems) => {
       const existing = previousItems.find((item) => item.partId === parsedPartId);
 
       if (existing) {
         return previousItems.map((item) =>
-          item.partId === parsedPartId ? { ...item, quantity: item.quantity + parsedQuantity } : item
+          item.partId === parsedPartId
+            ? { ...item, quantity: item.quantity + parsedQuantity, price: unitPrice }
+            : item
         );
       }
 
@@ -105,13 +166,19 @@ function StaffSalesPage() {
         {
           partId: chosenPart.id,
           name: chosenPart.partName,
-          price: chosenPart.price,
+          price: unitPrice,
           quantity: parsedQuantity,
         },
       ];
     });
 
-    resetLineItemForm();
+    setPartId('');
+    setQuantity(1);
+    setPrice(0);
+  };
+
+  const removeFromCart = (targetPartId) => {
+    setCartItems((previousItems) => previousItems.filter((item) => item.partId !== targetPartId));
   };
 
   const createInvoice = async () => {
@@ -120,22 +187,50 @@ function StaffSalesPage() {
     setFeedback({ type: '', message: '' });
 
     if (!parsedCustomerId || parsedCustomerId <= 0) {
-      alert('Please select a valid customer.');
+      setFeedback({ type: 'error', message: 'Enter a valid Customer ID.' });
+      return;
+    }
+
+    if (!matchedCustomer) {
+      setFeedback({ type: 'error', message: `Customer ID ${parsedCustomerId} was not found.` });
       return;
     }
 
     if (cartItems.length === 0) {
-      alert('Your cart is empty. Add parts first.');
+      setFeedback({ type: 'error', message: 'Cart is empty. Add parts before checkout.' });
       return;
+    }
+
+    const normalizedPaymentStatus = paymentStatus || 'Paid';
+    const requiresCreditFields = normalizedPaymentStatus === 'Credit' || normalizedPaymentStatus === 'Partial';
+
+    if (requiresCreditFields && !dueDate) {
+      setFeedback({ type: 'error', message: 'Due date is required for credit or partial invoices.' });
+      return;
+    }
+
+    const parsedPaidAmount = Number(paidAmount || 0);
+
+    if (normalizedPaymentStatus === 'Partial') {
+      if (parsedPaidAmount < 0) {
+        setFeedback({ type: 'error', message: 'Paid amount cannot be negative.' });
+        return;
+      }
+
+      if (parsedPaidAmount > totals.finalAmount) {
+        setFeedback({ type: 'error', message: 'Paid amount cannot exceed invoice total.' });
+        return;
+      }
     }
 
     setIsSubmitting(true);
 
     try {
-      setFeedback({ type: 'info', message: 'Generating invoice...' });
-
       const response = await createSale({
         customerId: parsedCustomerId,
+        paymentStatus: normalizedPaymentStatus,
+        paidAmount: normalizedPaymentStatus === 'Partial' ? parsedPaidAmount : undefined,
+        dueDate: requiresCreditFields ? dueDate : undefined,
         items: cartItems.map((item) => ({
           partId: item.partId,
           quantity: item.quantity,
@@ -145,156 +240,238 @@ function StaffSalesPage() {
 
       const invoice = saveStoredInvoice({
         ...response.data,
-        customerEmail: customerEmail || selectedCustomer?.email || '',
-        customerName: selectedCustomer?.name || '',
+        customerEmail: matchedCustomer.email || '',
+        customerName: matchedCustomer.name || '',
       });
 
       setCartItems([]);
-      resetLineItemForm();
-      setFeedback({ type: 'success', message: 'Invoice generated successfully.' });
+      setPartId('');
+      setQuantity(1);
+      setPrice(0);
+      setPaymentStatus('Paid');
+      setPaidAmount('');
+      setDueDate('');
+      setFeedback({ type: 'success', message: 'Invoice created successfully.' });
       navigate(`/staff/invoices/${invoice.saleId}`, { state: { invoice } });
     } catch (error) {
-      const errorMessage = extractApiError(error);
-      setFeedback({ type: 'error', message: `Generate invoice failed: ${errorMessage}` });
-      alert(`Generate Invoice failed: ${errorMessage}`);
+      setFeedback({ type: 'error', message: extractApiError(error) });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <section className="sales-page-shell">
-      {feedback.message ? <div className={`sales-banner sales-banner--${feedback.type || 'info'}`}>{feedback.message}</div> : null}
+    <section className="sales-page-shell sales-page-shell--workspace">
+      {feedback.message ? (
+        <div className={`sales-banner sales-banner--${feedback.type || 'info'}`}>{feedback.message}</div>
+      ) : null}
 
-      <section className="sales-card">
+      <section className="sales-card sales-card--checkout">
         <div className="sales-card__intro sales-card__intro--single">
-          <span className="sales-card__badge">Staff Sales</span>
-          <h2>Create Sales Invoice</h2>
-          <p>Sell vehicle parts, update stock, and generate invoice records for customers.</p>
+          <h2>Sales Checkout</h2>
+          <p>Create sales invoices and process transactions quickly.</p>
         </div>
 
         <div className="sales-card__form sales-card__form--single">
-          <div className="sales-page__grid">
-            {isLoadingCatalog ? <div className="sales-banner sales-banner--info">Loading customers and parts...</div> : null}
+          {!canAccessSales ? (
+            <p className="sales-cart__empty">Sales access is restricted to staff accounts.</p>
+          ) : (
+            <>
+              {isLoadingCatalog ? (
+                <div className="sales-banner sales-banner--info">Loading customers and parts...</div>
+              ) : null}
 
-            <div className="sales-section">
-              <h3 className="sales-section__title">Customer</h3>
-              <div className="sales-page__row sales-page__row--customer">
-                <label className="field sales-field--wide">
-                  <span className="field__label">Customer</span>
-                  <select
-                    value={customerId}
-                    onChange={(event) => {
-                      const nextCustomerId = event.target.value;
-                      setCustomerId(nextCustomerId);
-                      const nextCustomer = catalog.customers.find((customer) => String(customer.id) === nextCustomerId);
-                      setCustomerEmail(nextCustomer?.email ?? '');
-                    }}
-                    disabled={isLoadingCatalog}
-                  >
-                    <option value="">Select a customer</option>
-                    {catalog.customers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.name} - {customer.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <div className="sales-checkout-sections">
+                <section className="sales-section">
+                  <h3 className="sales-section__title">Section 1: Select Customer</h3>
+                  <label className="field">
+                    <span className="field__label">Customer ID</span>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Enter Customer ID"
+                      value={customerId}
+                      onChange={(event) => setCustomerId(event.target.value)}
+                      disabled={isLoadingCatalog || isSubmitting}
+                      {...numberInputAutofillProps}
+                    />
+                  </label>
+                  {customerId ? (
+                    <p className="sales-field-hint">
+                      {matchedCustomer
+                        ? `Customer #${matchedCustomer.id} — ${matchedCustomer.name}${matchedCustomer.email ? ` (${matchedCustomer.email})` : ''}`
+                        : `No customer found for ID ${customerId}.`}
+                    </p>
+                  ) : null}
+                </section>
 
-                <label className="field sales-field--wide">
-                  <span className="field__label">Customer Email</span>
-                  <input
-                    type="email"
-                    placeholder="Customer email"
-                    value={customerEmail}
-                    onChange={(event) => setCustomerEmail(event.target.value)}
-                  />
-                </label>
+                <section className="sales-section">
+                  <h3 className="sales-section__title">Section 2: Add Parts</h3>
+                  <div className="sales-page__row sales-page__row--add">
+                    <label className="field">
+                      <span className="field__label">Part ID</span>
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder="Enter Part ID"
+                        value={partId}
+                        onChange={(event) => handlePartIdChange(event.target.value)}
+                        disabled={isLoadingCatalog || isSubmitting}
+                        {...numberInputAutofillProps}
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span className="field__label">Quantity</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={quantity}
+                        onChange={(event) => setQuantity(event.target.value)}
+                        disabled={isLoadingCatalog || isSubmitting}
+                        {...numberInputAutofillProps}
+                      />
+                    </label>
+
+                    <label className="field">
+                      <span className="field__label">Price</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={price}
+                        onChange={(event) => setPrice(event.target.value)}
+                        disabled={isLoadingCatalog || isSubmitting}
+                        {...numberInputAutofillProps}
+                      />
+                    </label>
+
+                    <div className="sales-page__actions sales-page__actions--inline">
+                      <button
+                        className="btn btn--secondary"
+                        type="button"
+                        onClick={handleAddToCart}
+                        disabled={isLoadingCatalog || isSubmitting}
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
+                  </div>
+                  {partId ? (
+                    <p className="sales-field-hint">
+                      {matchedPart
+                        ? `Part #${matchedPart.id} — ${matchedPart.partName} • Stock ${matchedPart.quantity}`
+                        : `No part found for ID ${partId}.`}
+                    </p>
+                  ) : null}
+                </section>
+
+                <section className="sales-section">
+                  <h3 className="sales-section__title">Section 3: Shopping Cart</h3>
+
+                  {cartItems.length === 0 ? (
+                    <p className="sales-cart__empty">Cart is empty</p>
+                  ) : (
+                    <ul className="sales-cart__list">
+                      {cartItems.map((item) => (
+                        <li className="sales-cart__item" key={item.partId}>
+                          <span className="sales-cart__item-name">
+                            Part ID {item.partId} — {item.name}
+                          </span>
+                          <span>{item.quantity} x {formatCurrency(item.price)}</span>
+                          <span>{formatCurrency(item.quantity * item.price)}</span>
+                          <button
+                            type="button"
+                            className="sales-cart__remove"
+                            onClick={() => removeFromCart(item.partId)}
+                            aria-label={`Remove part ${item.partId}`}
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <section className="sales-section sales-section--payment">
+                    <h3 className="sales-section__title">Payment</h3>
+                    <div className="sales-page__row">
+                      <label className="field">
+                        <span className="field__label">Payment Status</span>
+                        <select
+                          value={paymentStatus}
+                          onChange={(event) => setPaymentStatus(event.target.value)}
+                          disabled={isSubmitting}
+                        >
+                          <option value="Paid">Paid</option>
+                          <option value="Credit">Credit</option>
+                          <option value="Partial">Partial</option>
+                        </select>
+                      </label>
+
+                      {(paymentStatus === 'Credit' || paymentStatus === 'Partial') && (
+                        <label className="field">
+                          <span className="field__label">Due Date</span>
+                          <input
+                            type="date"
+                            value={dueDate}
+                            onChange={(event) => setDueDate(event.target.value)}
+                            disabled={isSubmitting}
+                          />
+                        </label>
+                      )}
+
+                      {paymentStatus === 'Partial' && (
+                        <label className="field">
+                          <span className="field__label">Paid Amount</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={paidAmount}
+                            onChange={(event) => setPaidAmount(event.target.value)}
+                            disabled={isSubmitting}
+                            {...numberInputAutofillProps}
+                          />
+                        </label>
+                      )}
+                    </div>
+                    {paymentStatus === 'Credit' && (
+                      <p className="sales-field-hint">
+                        Remaining balance: {formatCurrency(totals.finalAmount)}
+                      </p>
+                    )}
+                    {paymentStatus === 'Partial' && (
+                      <p className="sales-field-hint">
+                        Remaining balance:{' '}
+                        {formatCurrency(Math.max(0, totals.finalAmount - Number(paidAmount || 0)))}
+                      </p>
+                    )}
+                  </section>
+
+                  <div className="sales-summary">
+                    <SummaryRow label="Subtotal" value={formatCurrency(totals.subtotal)} highlight />
+                    {totals.loyaltyDiscountApplied ? (
+                      <SummaryRow label="Loyalty Discount (10%)" value={`-${formatCurrency(totals.discountAmount)}`} />
+                    ) : null}
+                    <SummaryRow label="Loyalty Points Earned" value={String(totals.loyaltyPointsEarned)} />
+                    <SummaryRow label="Final Amount" value={formatCurrency(totals.finalAmount)} highlight />
+                  </div>
+
+                  <div className="sales-page__actions sales-page__actions--checkout">
+                    <button
+                      className="btn btn--primary"
+                      type="button"
+                      onClick={createInvoice}
+                      disabled={isSubmitting || isLoadingCatalog || cartItems.length === 0}
+                    >
+                      {isSubmitting ? 'Processing...' : 'Complete Sale'}
+                    </button>
+                  </div>
+                </section>
               </div>
-            </div>
-
-            <div className="sales-section">
-              <h3 className="sales-section__title">Add Parts</h3>
-
-              <div className="sales-page__row sales-page__row--add">
-                <label className="field">
-                  <span className="field__label">Part</span>
-                  <select
-                    value={selectedPartId}
-                    onChange={(event) => setSelectedPartId(event.target.value)}
-                    disabled={isLoadingCatalog}
-                  >
-                    <option value="">Select a part</option>
-                    {catalog.parts.map((part) => (
-                      <option key={part.id} value={part.id}>
-                        {part.partName} - Rs{Number(part.price || 0).toFixed(2)} - Stock {part.quantity}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="sales-field-hint">
-                    {selectedPart
-                      ? `${selectedPart.category} • ${selectedPart.vendorName || 'No vendor'}`
-                      : 'Choose a part from inventory'}
-                  </span>
-                </label>
-
-                <label className="field">
-                  <span className="field__label">Quantity</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={quantity}
-                    onChange={(event) => setQuantity(event.target.value)}
-                  />
-                </label>
-
-                <label className="field">
-                  <span className="field__label">Price</span>
-                  <input type="number" value={selectedPart ? Number(selectedPart.price || 0).toFixed(2) : ''} readOnly />
-                </label>
-
-                <div className="sales-page__actions sales-page__actions--inline">
-                  <button className="btn btn--secondary" type="button" onClick={handleAddToCart} disabled={isLoadingCatalog || isSubmitting}>
-                    Add to Cart
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="sales-section">
-              <h3 className="sales-section__title">Shopping Cart</h3>
-
-              {cartItems.length === 0 ? (
-                <p className="sales-cart__empty">No items added yet.</p>
-              ) : (
-                <ul className="sales-cart__list">
-                  {cartItems.map((item) => (
-                    <li className="sales-cart__item" key={item.partId}>
-                      <span>{item.name}</span>
-                      <span>{item.quantity} x Rs{item.price.toFixed(2)}</span>
-                      <span>Rs{(item.quantity * item.price).toFixed(2)}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              <h3 className="sales-page__total">
-                Total Amount: <span className="sales-page__total-value">Rs{subtotal.toFixed(2)}</span>
-              </h3>
-            </div>
-
-            <div className="sales-section">
-              <h3 className="sales-section__title">Submit</h3>
-              <div className="sales-card__footer sales-card__footer--centered">
-                <span className="sales-page__checkout-note">Generate an invoice to open the invoice details page.</span>
-                <div className="sales-page__actions">
-                  <button className="btn btn--primary" type="button" onClick={createInvoice} disabled={isSubmitting || isLoadingCatalog}>
-                    Create Invoice
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </section>
     </section>

@@ -1,0 +1,202 @@
+.notification-bell-wrap {
+  position: relative;
+}
+
+.notification-bell-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--secondary-purple);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.notification-bell-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--accent-pink-rgb), 0.4);
+  box-shadow: 0 8px 18px rgba(var(--accent-pink-rgb), 0.16);
+}
+
+.notification-bell-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.notification-bell-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--button-pink), #f57dad);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(var(--accent-pink-rgb), 0.35);
+}
+
+.notification-bell-panel {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 22px 44px rgba(26, 20, 41, 0.2);
+  overflow: hidden;
+  animation: notificationPanelIn 0.22s ease;
+}
+
+.notification-bell-panel--portal {
+  position: fixed;
+  z-index: 10050;
+  max-height: min(480px, calc(100vh - 96px));
+  isolation: isolate;
+}
+
+@keyframes notificationPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.notification-bell-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  background: linear-gradient(180deg, #ffffff, var(--pink-tint-12));
+}
+
+.notification-bell-panel-head h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  color: var(--ink-900);
+}
+
+.notification-bell-panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.notification-bell-panel-actions button {
+  border: 0;
+  background: transparent;
+  color: var(--secondary-purple);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notification-bell-list {
+  overflow: auto;
+  padding: 8px;
+}
+
+.notification-bell-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.notification-bell-item.is-unread {
+  background: var(--pink-tint-12);
+  border-color: rgba(var(--accent-pink-rgb), 0.18);
+}
+
+.notification-bell-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notification-bell-item-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink-900);
+}
+
+.notification-bell-item-time {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--ink-700);
+}
+
+.notification-bell-item-message {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--ink-700);
+}
+
+.notification-bell-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.notification-bell-item-actions button {
+  border: 0;
+  background: transparent;
+  color: var(--secondary-purple);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+
+.notification-bell-empty,
+.notification-bell-loading,
+.notification-bell-error {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--ink-700);
+  font-size: 0.9rem;
+}
+
+.notification-bell-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10040;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(26, 20, 41, 0.35);
+  cursor: pointer;
+}
+
+.notification-bell-panel-head,
+.notification-bell-list {
+  background: #ffffff;
+}
+
+@media (max-width: 640px) {
+  .notification-bell-panel--portal {
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none;
+  }
+}

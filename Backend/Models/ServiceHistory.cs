@@ -38,6 +38,14 @@ namespace Backend.Models
         [Required]
         public DateTime ServiceDate { get; set; }
 
+        /// <summary>
+        /// When set, this history row was generated from a completed <see cref="Sale"/> checkout.
+        /// Customer History reads these rows; sales remain authoritative in the Sales table.
+        /// </summary>
+        public int? RelatedSaleId { get; set; }
+
+        public Sale? RelatedSale { get; set; }
+
         // Timestamp when a payment reminder was last sent for overdue credit
         public DateTime? ReminderSentAt { get; set; }
     }

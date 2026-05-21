@@ -1,3 +1,5 @@
+import StatusChip from './admin/StatusChip';
+
 function VendorList({ vendors, onEdit, onDelete }) {
   if (vendors.length === 0) {
     return (
@@ -28,7 +30,9 @@ function VendorList({ vendors, onEdit, onDelete }) {
                 <strong>{vendor.vendorName}</strong>
               </td>
               <td>{vendor.companyName}</td>
-              <td>{vendor.status || 'Active'}</td>
+              <td>
+                <StatusChip label={vendor.status || 'Active'} />
+              </td>
               <td>{vendor.phone}</td>
               <td>{vendor.email}</td>
               <td>{vendor.address}</td>
